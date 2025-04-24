@@ -1,11 +1,18 @@
 ---@diagnostic disable:duplicate-set-field
 
 dofile "$SURVIVAL_DATA/Scripts/util.lua"
-dofile "ProjectileLibrary.lua"
 dofile "util.lua"
+dofile "font.lua"
 
 ---@class GameHook : ToolClass
 GameHook = class()
+
+function GameHook:client_onCreate()
+    dofile "$CONTENT_DATA/Scripts/ProjectileLibrary.lua"
+    g_font = Font():init()
+end
+
+
 
 local collisionFilter = sm.physics.filter.default + sm.physics.filter.areaTrigger
 local function CheckCustomCollision(hit, result)

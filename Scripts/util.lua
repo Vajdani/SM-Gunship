@@ -1,4 +1,6 @@
 vec3 = sm.vec3.new
+uuid = sm.uuid.new
+colour = sm.color.new
 getRotation = sm.vec3.getRotation
 getGravity = sm.physics.getGravity
 angleAxis = sm.quat.angleAxis
@@ -31,15 +33,18 @@ VEC3_RIGHT = vec3(1, 0, 0)
 VEC3_FORWARD = vec3(0, 1, 0)
 VEC3_UP = vec3(0, 0, 1)
 VEC3_ZERO = sm.vec3.zero()
+VEC3_ONE = sm.vec3.one()
 RAD90 = math.pi * 0.5
 DIVRAD90 = 1 / RAD90
 
+
+obj_uishape = uuid("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6")
 
 
 Line_tracer = class()
 function Line_tracer:init(thickness, colour)
     self.effect = sm.effect.createEffect("ShapeRenderable")
-    self.effect:setParameter("uuid", sm.uuid.new("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
+    self.effect:setParameter("uuid", uuid("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
     self.effect:setParameter("color", colour)
     self.effect:setScale(sm.vec3.one() * thickness)
 
@@ -76,4 +81,177 @@ end
 
 function Line_tracer:destroy()
     self.effect:destroy()
+end
+
+
+---@class Text3D
+---@field effects Effect[]
+---@field text string
+Text3D = class()
+
+---@param length number
+---@return Text3D
+function Text3D:init(length, align)
+    self.effects = {}
+    for i = 1, length do
+        local effect = sm.effect.createEffect("ShapeRenderable")
+        effect:setParameter("uuid", obj_uishape)
+
+        self.effects[i] = effect
+    end
+
+    self.text = ""
+
+    self.position = VEC3_ZERO
+    self.rotation = sm.quat.identity()
+    self.scale = VEC3_ONE
+    self.align = align
+
+    return self
+end
+
+---@return boolean
+function Text3D:isPlaying()
+    return self.effects[1]:isPlaying()
+end
+
+function Text3D:start()
+    if self:isPlaying() then return end
+
+    local length = #self.text
+    for k, v in pairs(self.effects) do
+        if k <= length then
+            v:start()
+        end
+    end
+end
+
+function Text3D:stop()
+    if not self:isPlaying() then return end
+
+    for k, v in pairs(self.effects) do
+        v:stop()
+    end
+end
+
+function Text3D:destroy()
+    for k, v in pairs(self.effects) do
+        v:destroy()
+    end
+end
+
+---@param text string
+function Text3D:update(text)
+    local playing = self:isPlaying()
+    self:stop()
+
+    if #self.text == 0 then
+        for i = 1, #self.effects do
+            local current = text:sub(i, i)
+            if current ~= "" then
+                self.effects[i]:setParameter("uuid", uuid(g_font.Char2uuid[current]))
+            end
+        end
+    else
+        for i = 1, #self.effects do
+            local current = text:sub(i, i)
+            if current ~= "" and current ~= self.text:sub(i, i) then
+                self.effects[i]:setParameter("uuid", uuid(g_font.Char2uuid[current]))
+            end
+        end
+    end
+
+    if playing then
+        self:start()
+    end
+
+    self.text = text
+end
+
+function Text3D:setPosition(position)
+    self.position = position
+end
+
+function Text3D:setRotation(rotation)
+    self.rotation = rotation
+end
+
+function Text3D:setScale(scale)
+    self.scale = scale
+
+    for k, v in pairs(self.effects) do
+        v:setScale(scale)
+    end
+end
+
+function Text3D:setColour(colour)
+    for k, v in pairs(self.effects) do
+        v:setParameter("color", colour)
+    end
+end
+
+function Text3D:render()
+    local position, rotation, scale = self.position, self.rotation, self.scale
+    local textLength, effectLength = #self.text, #self.effects
+    local dir = rotation * VEC3_RIGHT * scale:length()
+    if self.align == 1 then
+        for k, v in ipairs(self.effects) do
+            if k <= textLength then
+                v:setPosition(position - dir * (-1 + k/effectLength * 2))
+                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
+                v:setScale(scale)
+            end
+        end
+    elseif self.align == 2 then
+        local diff = (effectLength - textLength) * 0.5
+        for k, v in ipairs(self.effects) do
+            if k <= textLength then
+                v:setPosition(position + dir * (1 - k/effectLength * 2 - diff))
+                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
+                v:setScale(scale)
+            end
+        end
+    else
+        local diff = (effectLength - textLength) * 0.25
+        for k, v in ipairs(self.effects) do
+            if k <= textLength then
+                v:setPosition(position + dir * (1 - k/effectLength * 2 - diff))
+                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
+                v:setScale(scale)
+            end
+        end
+    end
+end
+
+function epic(self)
+    local position, rotation, scale = self.position, self.rotation, self.scale
+    local textLength, effectLength = #self.text, #self.effects
+    local dir = rotation * VEC3_RIGHT * scale:length()
+    if self.align == 1 then
+        for k, v in ipairs(self.effects) do
+            if k <= textLength then
+                v:setPosition(position - dir * (-1 + k/effectLength * 2))
+                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
+                v:setScale(scale)
+            end
+        end
+    elseif self.align == 2 then
+        local diff = (effectLength - textLength) * 0.5
+        for k, v in ipairs(self.effects) do
+            if k <= textLength then
+                v:setPosition(position + dir * (1 - k/effectLength * 2 - diff))
+                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
+                v:setScale(scale)
+            end
+        end
+    else
+        local diff = (effectLength - textLength) * 0.25
+        for k, v in ipairs(self.effects) do
+            if k <= textLength then
+                v:setPosition(position + dir * (1 - k/effectLength * 2 - diff))
+                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
+                v:setScale(scale)
+            end
+        end
+    end
 end

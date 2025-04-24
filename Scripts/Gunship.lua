@@ -10,8 +10,8 @@ Gunship.maxParentCount = 0
 Gunship.maxChildCount = 7
 Gunship.connectionInput = sm.interactable.connectionType.none
 Gunship.connectionOutput = sm.interactable.connectionType.seated
-Gunship.colorNormal = sm.color.new(0xcb0a00ff)
-Gunship.colorHighlight = sm.color.new(0xee0a00ff)
+Gunship.colorNormal = colour(0xcb0a00ff)
+Gunship.colorHighlight = colour(0xee0a00ff)
 
 local maxHealth = 2000
 local thrusterMaxHealth = 200
@@ -24,7 +24,7 @@ local rocketBurstTicks = 5
 local aimAssistRange = 100
 local autocannonVelocity = 400
 local autocannonDamage = 100
-local autocannonProjectile = sm.uuid.new("4a33d08b-4e12-4412-abb5-7b16e1aafe1a")
+local autocannonProjectile = uuid("4a33d08b-4e12-4412-abb5-7b16e1aafe1a")
 local rocketVelocity = 200
 local rocketDamage = 100
 local turretTurnSpeed = 5
@@ -58,11 +58,11 @@ local destructionResistence = {
 local engineScale = vec3(0.75, 1.5, 2.065) * 0.5
 local engineOffset = 0.275
 
-local green = sm.color.new(0, 1, 0)
-local red = sm.color.new(1, 0, 0)
-local white = sm.color.new(1, 1, 1)
-local yellow = sm.color.new(1, 1, 0)
-local black = sm.color.new(0, 0, 0)
+local green = colour(0, 1, 0)
+local red = colour(1, 0, 0)
+local white = colour(1, 1, 1)
+local yellow = colour(1, 1, 0)
+local black = colour(0, 0, 0)
 
 function Gunship:server_onCreate()
     if self.shape.body:isStatic() and not self.shape.body:isOnLift() then
@@ -151,7 +151,7 @@ function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
     local area = self.sv_damageAreas[id]
     if area.health <= 0 then return true end
 
-    local finalDamage = round(damage * (1 - destructionResistence[level]))
+    local finalDamage = math.ceil(damage * (1 - destructionResistence[level]))
     area.health = area.health - finalDamage
     print(("[Gunship %s Thruster %s] Recieved %s damage (%s/%s)"):format(self.shape.id, id, finalDamage, area.health, thrusterMaxHealth))
 
@@ -306,7 +306,7 @@ end
 function Gunship:sv_takeDamage(damage)
     if self.sv_health <= 0 then return end
 
-    damage = round(damage)
+    damage = math.ceil(damage)
 
     self.sv_health = self.sv_health - damage
     print(("[Gunship %s] Recieved %s damage (%s/%s)"):format(self.shape.id, damage, self.sv_health, maxHealth))
@@ -356,7 +356,7 @@ function Gunship:client_onCreate()
     self.cl_actions = {}
 
     local cockpit = sm.effect.createEffect("ShapeRenderable")
-    cockpit:setParameter("uuid", sm.uuid.new("5e7a0724-a469-468a-9138-eea1b23c2387"))
+    cockpit:setParameter("uuid", uuid("5e7a0724-a469-468a-9138-eea1b23c2387"))
     cockpit:setParameter("color", self.shape.color)
     cockpit:setScale(vec3(0.25, 0.25, 0.25))
 
@@ -370,7 +370,7 @@ function Gunship:client_onCreate()
     end
 
     local aimPoint = sm.effect.createEffect("ShapeRenderable")
-    aimPoint:setParameter("uuid", sm.uuid.new("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
+    aimPoint:setParameter("uuid", obj_uishape)
     aimPoint:setParameter("color", green)
     aimPoint:setScale(vec3(0.25, 0.25, 0.25))
     self.aimPoint = aimPoint
@@ -412,13 +412,20 @@ function Gunship:client_onCreate()
     -- end
 
     local mainHealth = sm.effect.createEffect("ShapeRenderable")
-    mainHealth:setParameter("uuid", sm.uuid.new("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
+    mainHealth:setParameter("uuid", obj_uishape)
     self.wgui.mainHealth = mainHealth
+
+    self.wgui.mainHealthText = Text3D():init(4, 3)
+    self.wgui.mainHealthText:update("100%")
 
     for i = 1, 4 do
         local bar = sm.effect.createEffect("ShapeRenderable")
-        bar:setParameter("uuid", sm.uuid.new("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
+        bar:setParameter("uuid", obj_uishape)
         self.wgui["engine"..i.."Health"] = bar
+
+        local text3D = Text3D():init(4, i % 2 == 0 and 2 or 1)
+        text3D:update("100%")
+        self.wgui["engine"..i.."HealthText"] = text3D
     end
 
     self.gui = sm.gui.createSeatGui()
@@ -484,14 +491,20 @@ end
 function Gunship:client_onClientDataUpdate(data, channel)
     if channel == 1 then
         self.cl_health = data
-        self.wgui.mainHealth:setParameter("color", self:GetHealthColour(data, maxHealth))
+
+        local colour = self:GetHealthColour(data, maxHealth)
+        self.wgui.mainHealth:setParameter("color", colour)
+
+        self.wgui.mainHealthText:update(max(math.ceil(data / maxHealth * 100), 0).."%")
+        self.wgui.mainHealthText:setColour(colour)
     else
-        local alive = data.health > 0
-        local id = data.id
+        local id, health = data.id, data.health
+        local alive = health > 0
         self.interactable:setSubMeshVisible("engine"..id, alive)
 
+        local colour = self:GetHealthColour(health, thrusterMaxHealth)
         if alive then
-            self.wgui["engine"..id.."Health"]:setParameter("color", self:GetHealthColour(data.health, thrusterMaxHealth))
+            self.wgui["engine"..id.."Health"]:setParameter("color", colour)
         else
             self.wgui["engine"..id.."Health"]:setParameter("color", black)
 
@@ -505,6 +518,10 @@ function Gunship:client_onClientDataUpdate(data, channel)
                 self.cl_damageAreas[id] = nil
             end
         end
+
+        local text3D = self.wgui["engine"..id.."HealthText"]
+        text3D:update(max(math.ceil(health / thrusterMaxHealth * 100), 0).."%")
+        text3D:setColour(colour)
     end
 end
 
@@ -682,7 +699,7 @@ function Gunship:cl_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
     --     sm.effect.playEffect(effect, hitPos + dir * 0.05, nil, getRotation(dir, VEC3_UP))
     -- end
 
-    return true
+    return not sm.isHost
 end
 
 function Gunship:cl_seat()
@@ -822,7 +839,7 @@ function Gunship:cl_updateCockpitUI(dt)
     --         if not hotbarItem then
     --             hotbarItem = {}
     --             local itembg = sm.effect.createEffect( "ShapeRenderable" )
-    --             itembg:setParameter("uuid", blk_plastic) --sm.uuid.new("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
+    --             itembg:setParameter("uuid", blk_plastic) --obj_uishape)
     --             itembg:setParameter("color", black)
     --             itembg:setScale(vec3(0.025, 0.025, 0))
 
@@ -843,7 +860,7 @@ function Gunship:cl_updateCockpitUI(dt)
 
     --         local uuid = tostring(int.shape.uuid)
     --         if uuid == mountedCannonUUID then
-    --             local itemId = sm.uuid.new(sm.GetTurretAmmoData(MountedCannonGun, sm.GetInteractableClientPublicData(int).ammoType))
+    --             local itemId = uuid(sm.GetTurretAmmoData(MountedCannonGun, sm.GetInteractableClientPublicData(int).ammoType))
     --             hotbarItem.item:setParameter("uuid", itemId)
     --             hotbarItem.item:setParameter("color", int.shape.color)
     --             hotbarItem.item:setScale(vec3(0.25, 0.25, 0.25) * 0.1 * GetItemScale(itemId))
@@ -873,7 +890,7 @@ function Gunship:cl_updateCockpitUI(dt)
     if not self.init then
         for i = 1, 10 do
             local bar = sm.effect.createEffect("ShapeRenderable")
-            bar:setParameter("uuid", sm.uuid.new("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"))
+            bar:setParameter("uuid", obj_uishape)
             self.wgui["bar" .. i] = bar
         end
 
@@ -939,23 +956,48 @@ function Gunship:cl_updateCockpitUI(dt)
     self.wgui.mainHealth:setRotation(healthRotation)
     self.wgui.mainHealth:setScale(vec3(0.2, 0.75, 0) * 0.1)
 
+    self.wgui.mainHealthText:setPosition(healthCenter + healthRotation * VEC3_FORWARD * 0.044)
+    self.wgui.mainHealthText:setRotation(healthRotation)
+    self.wgui.mainHealthText:setScale(VEC3_ONE * 0.011)
+    self.wgui.mainHealthText:render()
+
     local uiEngineScale = vec3(0.01, 0.02, 0)
     local uiEngineRightOffset, uiEngineUpOffset = healthRotation * VEC3_RIGHT * 0.0175, healthRotation * VEC3_FORWARD * 0.025
     self.wgui.engine1Health:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
     self.wgui.engine1Health:setRotation(healthRotation)
     self.wgui.engine1Health:setScale(uiEngineScale)
 
+    self.wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset * 2.2 + uiEngineUpOffset)
+    self.wgui.engine1HealthText:setRotation(healthRotation)
+    self.wgui.engine1HealthText:setScale(VEC3_ONE * 0.011)
+    self.wgui.engine1HealthText:render()
+
     self.wgui.engine2Health:setPosition(healthCenter + uiEngineRightOffset + uiEngineUpOffset)
     self.wgui.engine2Health:setRotation(healthRotation)
     self.wgui.engine2Health:setScale(uiEngineScale)
+
+    self.wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 2.75 + uiEngineUpOffset)
+    self.wgui.engine2HealthText:setRotation(healthRotation)
+    self.wgui.engine2HealthText:setScale(VEC3_ONE * 0.011)
+    self.wgui.engine2HealthText:render()
 
     self.wgui.engine3Health:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
     self.wgui.engine3Health:setRotation(healthRotation)
     self.wgui.engine3Health:setScale(uiEngineScale)
 
+    self.wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset * 2.2 - uiEngineUpOffset)
+    self.wgui.engine3HealthText:setRotation(healthRotation)
+    self.wgui.engine3HealthText:setScale(VEC3_ONE * 0.011)
+    self.wgui.engine3HealthText:render()
+
     self.wgui.engine4Health:setPosition(healthCenter + uiEngineRightOffset - uiEngineUpOffset)
     self.wgui.engine4Health:setRotation(healthRotation)
     self.wgui.engine4Health:setScale(uiEngineScale)
+
+    self.wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 2.75 - uiEngineUpOffset)
+    self.wgui.engine4HealthText:setRotation(healthRotation)
+    self.wgui.engine4HealthText:setScale(VEC3_ONE * 0.011)
+    self.wgui.engine4HealthText:render()
 end
 
 function Gunship:cl_updateThrusters(dt)
