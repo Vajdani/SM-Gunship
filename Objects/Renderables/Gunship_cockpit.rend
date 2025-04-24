@@ -1,0 +1,23 @@
+{
+   "lodList" : [
+      {
+         "mesh" : "$CONTENT_DATA/Objects/Mesh/Gunship_cockpit.fbx",
+         "subMeshMap" : {
+            "Base_Cockpit" : {
+               "material" : "Dif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            },
+            "Glass_Cockpit" : {
+               "material" : "Glass",
+               "textureList" : [
+                  "$GAME_DATA/Objects/Textures/characterobject/obj_characterobject_farmbotpackage_glass_dif.tga",
+						"$GAME_DATA/Objects/Textures/characterobject/obj_characterobject_farmbotpackage_glass_asg.tga",
+						"$GAME_DATA/Textures/Materialtextures/normal_nor.tga"
+               ]
+            }
+         }
+      }
+   ]
+}

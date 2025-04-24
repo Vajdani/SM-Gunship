@@ -1,0 +1,15 @@
+{
+   "lodList" : [
+      {
+         "mesh" : "$GAME_DATA/Mesh/cube.mesh",
+         "subMeshList" : [
+            {
+               "material" : "ConnectJoint",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            }
+         ]
+      }
+   ]
+}

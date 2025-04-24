@@ -1,0 +1,17 @@
+{
+   "lodList" : [
+      {
+         "mesh" : "$CONTENT_DATA/Projectiles/Mesh/turret_bullet.fbx",
+         "subMeshList" : [
+            {
+               "material" : "DifAsgNor",
+               "textureList" : [
+                  "$CONTENT_DATA/Projectiles/Textures/obj_turret_cartridge_dif.tga",
+                  "$CONTENT_DATA/Projectiles/Textures/obj_turret_cartridge_asg.tga",
+                  "$CONTENT_DATA/Projectiles/Textures/obj_turret_cartridge_nor.tga"
+               ]
+            }
+         ]
+      }
+   ]
+}

@@ -1,0 +1,71 @@
+{
+   "lodList" : [
+      {
+         "animationList" : [
+            {
+               "file" : "$CONTENT_DATA/Objects/Animations/Gunship_engine1_rotate.fbx",
+               "name" : "engine1_rotate"
+            },
+            {
+               "file" : "$CONTENT_DATA/Objects/Animations/Gunship_engine2_rotate.fbx",
+               "name" : "engine2_rotate"
+            },
+            {
+               "file" : "$CONTENT_DATA/Objects/Animations/Gunship_engine3_rotate.fbx",
+               "name" : "engine3_rotate"
+            },
+            {
+               "file" : "$CONTENT_DATA/Objects/Animations/Gunship_engine4_rotate.fbx",
+               "name" : "engine4_rotate"
+            },
+            {
+               "file" : "$CONTENT_DATA/Objects/Animations/Gunship_turret_rotate_horizontal.fbx",
+               "name" : "turret_rotate_horizontal"
+            },
+            {
+               "file" : "$CONTENT_DATA/Objects/Animations/Gunship_turret_rotate_vertical.fbx",
+               "name" : "turret_rotate_vertical"
+            }
+         ],
+         "mesh" : "$CONTENT_DATA/Objects/Mesh/Gunship.fbx",
+         "subMeshMap" : {
+            "Base" : {
+               "material" : "SkelAnimDif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            },
+            "engine1" : {
+               "material" : "SkelAnimDif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            },
+            "engine2" : {
+               "material" : "SkelAnimDif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            },
+            "engine3" : {
+               "material" : "SkelAnimDif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            },
+            "engine4" : {
+               "material" : "SkelAnimDif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            },
+            "Glass" : {
+               "material" : "SkelAnimDif",
+               "textureList" : [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ]
+            }
+         }
+      }
+   ]
+}

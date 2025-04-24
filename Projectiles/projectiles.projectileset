@@ -1,0 +1,47 @@
+{
+   "projectiles": [
+      {
+         "attachedEffect": "",
+         "audiomass": 250.0,
+         "destruction": {
+            "destructionLevels": [
+               {
+                  "chance": 1.0,
+                  "qualityLevel": 1
+               },
+               {
+                  "chance": 0.80,
+                  "qualityLevel": 2
+               },
+               {
+                  "chance": 0.70,
+                  "qualityLevel": 3
+               },
+               {
+                  "chance": 0.50,
+                  "qualityLevel": 4
+               },
+               {
+                  "chance": 0.20,
+                  "qualityLevel": 5
+               },
+               {
+                  "chance": 0.10,
+                  "qualityLevel": 6
+               }
+            ]
+         },
+         "effect": "Sledgehammer - Hit",
+         "effectmaterial": "Metal",
+         "enableGravity": true,
+         "enableImpactEffect": false,
+         "friction": 0.2000000029802322,
+         "mass": 3.0,
+         "mesh": "$CONTENT_DATA/Projectiles/Renderables/turret_bullet_normal.rend",
+         "name": "autocannon_bullet",
+         "radius": 0.250,
+         "spin": 7.0,
+         "uuid": "4a33d08b-4e12-4412-abb5-7b16e1aafe1a"
+      }
+   ]
+}

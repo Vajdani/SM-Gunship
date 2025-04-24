@@ -1,0 +1,101 @@
+{
+    "partList": [
+        {
+            "box": {
+                "x": 8,
+                "y": 6,
+                "z": 40
+            },
+            "color": "ffffff",
+            "flammable": false,
+            "name": "obj_gunship",
+            "physicsMaterial": "Metal",
+            "ratings": {
+                "durability": 1
+            },
+            "renderable": "$CONTENT_DATA/Objects/Renderables/Gunship.rend",
+            "restrictions": {
+                "destructable": false
+            },
+            "rotationSet": "PropY",
+            "scripted": {
+                "classname": "Gunship",
+                "data": {},
+                "filename": "$CONTENT_DATA/Scripts/Gunship.lua",
+                "seat": {
+                    "bones": [
+                        {
+                            "name": "Hips",
+                            "offset": {
+                                "x": 0.0,
+                                "y": -0.550,
+                                "z": 17.40
+                            }
+                        },
+                        {
+                            "freeRotation": true,
+                            "name": "LeftForeArm",
+                            "offset": {
+                                "x": 1.0,
+                                "y": -0.50,
+                                "z": 18
+                            }
+                        },
+                        {
+                            "freeRotation": true,
+                            "name": "RightForeArm",
+                            "offset": {
+                                "x": -1.0,
+                                "y": -0.50,
+                                "z": 18
+                            }
+                        }
+                    ],
+                    "enterAudio": "Toilet seated",
+                    "exitAudio": "Toilet unseated",
+                    "ragdollFile": "$GAME_DATA/Character/seat_ragdoll.json"
+                }
+            },
+            "sticky": "+Y-Y",
+            "uuid": "9dd62b30-0244-41d8-a114-31322674f264"
+        },
+        {
+            "box": {
+                "x": 8,
+                "y": 6,
+                "z": 40
+            },
+            "color": "ffffff",
+            "flammable": false,
+            "name": "obj_gunship_cockpit",
+            "physicsMaterial": "Metal",
+            "ratings": {
+                "buoyancy": 7,
+                "density": 5,
+                "durability": 7,
+                "friction": 5
+            },
+            "renderable": "$CONTENT_DATA/Objects/Renderables/Gunship_cockpit.rend",
+            "rotationSet": "PropY",
+            "showInInventory": false,
+            "sticky": "+Y-Y",
+            "uuid": "5e7a0724-a469-468a-9138-eea1b23c2387"
+        },
+        {
+            "box": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "color": "ffffff",
+            "flammable": false,
+            "name": "obj_marker",
+            "physicsMaterial": "Metal",
+            "renderable": "$CONTENT_DATA/Objects/Renderables/UIShape.rend",
+            "rotationSet": "PropY",
+            "showInInventory": false,
+            "sticky": "+Y-Y",
+            "uuid": "7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"
+        }
+    ]
+}
