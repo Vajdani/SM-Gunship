@@ -65,6 +65,14 @@ local yellow = sm.color.new(1, 1, 0)
 local black = sm.color.new(0, 0, 0)
 
 function Gunship:server_onCreate()
+    if self.shape.body:isStatic() and not self.shape.body:isOnLift() then
+        local uuid, rot = self.shape.uuid, self.shape.worldRotation
+        sm.shape.createPart(uuid, self.shape.worldPosition - rot * sm.item.getShapeOffset(uuid), rot, true, true)
+        self.shape:destroyShape()
+
+        return
+    end
+
     self.sv_actions = {}
 
     self.sv_fireTimer = 0
@@ -93,7 +101,7 @@ function Gunship:server_onCreate()
 end
 
 function Gunship:server_onDestroy()
-    for k, v in pairs(self.sv_damageAreas) do
+    for k, v in pairs(self.sv_damageAreas or {}) do
         sm.areaTrigger.destroy(v.trigger)
     end
 end
