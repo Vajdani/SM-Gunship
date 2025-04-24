@@ -193,40 +193,7 @@ end
 function Text3D:render()
     local position, rotation, scale = self.position, self.rotation, self.scale
     local textLength, effectLength = #self.text, #self.effects
-    local dir = rotation * VEC3_RIGHT * scale:length()
-    if self.align == 1 then
-        for k, v in ipairs(self.effects) do
-            if k <= textLength then
-                v:setPosition(position - dir * (-1 + k/effectLength * 2))
-                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
-                v:setScale(scale)
-            end
-        end
-    elseif self.align == 2 then
-        local diff = (effectLength - textLength) * 0.5
-        for k, v in ipairs(self.effects) do
-            if k <= textLength then
-                v:setPosition(position + dir * (1 - k/effectLength * 2 - diff))
-                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
-                v:setScale(scale)
-            end
-        end
-    else
-        local diff = (effectLength - textLength) * 0.25
-        for k, v in ipairs(self.effects) do
-            if k <= textLength then
-                v:setPosition(position + dir * (1 - k/effectLength * 2 - diff))
-                v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
-                v:setScale(scale)
-            end
-        end
-    end
-end
-
-function epic(self)
-    local position, rotation, scale = self.position, self.rotation, self.scale
-    local textLength, effectLength = #self.text, #self.effects
-    local dir = rotation * VEC3_RIGHT * scale:length()
+    local dir = rotation * VEC3_RIGHT * max(scale:length(), 0.022)
     if self.align == 1 then
         for k, v in ipairs(self.effects) do
             if k <= textLength then
