@@ -47,7 +47,7 @@ local destroyActions = {
     [19] = true,
 }
 local turnLimit = 0.3
-local rayFilter = sm.physics.filter.default + sm.physics.filter.areaTrigger
+local rayFilter = sm.physics.filter.default --+ sm.physics.filter.areaTrigger
 local destructionTime = 5 * 40
 local destructionResistence = {
     [1] = 0.9,
@@ -67,6 +67,10 @@ local deathFadeDelay = 3 * 40
 local kamikazeRadius = 50
 local engineScale = vec3(0.75, 1.5, 2.065) * 0.5
 local engineOffset = 0.275
+
+local function GetImpulseMultiplier()
+    return math.random(10, 30) * (math.random() > 0.5 and 1 or -1)
+end
 
 local green = colour(0, 1, 0)
 local red = colour(1, 0, 0)
@@ -356,43 +360,50 @@ function Gunship:sv_takeDamage(damage)
             end
             self.sv_damageAreas = {}
 
-            local char, cId = self.interactable:getSeatCharacter(), self.shape.body:getCreationId()
-            local pos = self.shape.worldPosition
-            local contacts = sm.physics.getSphereContacts(pos, kamikazeRadius)
-            local objs = {}
-            concat(objs, contacts.harvestables)
-            concat(objs, contacts.characters)
-            concat(objs, contacts.bodies)
-
-            local minDir, minDist
-            for k, v in pairs(objs) do
-                local type = type(v)
-                if type == "Harvestable" or type == "Character" and v ~= char or type == "Body" and v:getCreationId() ~= cId then
-                    local dist = v.worldPosition - pos
-                    local length = dist:length2()
-                    if not minDist or length < minDist then
-                        minDir = dist
-                        minDist = length
-                    end
-                end
-            end
-
-            if not minDir then
-                minDir = (
-                    self.shape.at * (math.random() * 2 - 1) +
-                    self.shape.up * (math.random() * 2 - 1) +
-                    self.shape.right * (math.random() * 2 - 1)
-                )
-            end
-            minDir = minDir:normalize()
-
-            sm.physics.applyImpulse(self.shape, minDir * math.random(10, 20) * self.sv_mass, true)
-            sm.physics.applyTorque(self.shape.body, (VEC3_FORWARD * math.random(10, 20) + VEC3_RIGHT * math.random(5, 10)) * self.sv_mass)
+            self:sv_applyDeathImpulse(true)
         end
 
         self:setClientData(true, 3)
     else
         self:setClientData(self.sv_health, 1)
+    end
+end
+
+function Gunship:sv_applyDeathImpulse(applyTorque)
+    local char, cId = self.interactable:getSeatCharacter(), self.shape.body:getCreationId()
+    local pos = self.shape.worldPosition
+    local contacts = sm.physics.getSphereContacts(pos, kamikazeRadius)
+    local objs = {}
+    concat(objs, contacts.harvestables)
+    concat(objs, contacts.characters)
+    concat(objs, contacts.bodies)
+
+    local minDir, minDist
+    for k, v in pairs(objs) do
+        local type = type(v)
+        if type == "Harvestable" or type == "Character" and v ~= char or type == "Body" and v:getCreationId() ~= cId then
+            local dist = v.worldPosition - pos
+            local length = dist:length2()
+            if not minDist or length < minDist then
+                minDir = dist
+                minDist = length
+            end
+        end
+    end
+
+    if not minDir then
+        minDir = (
+            self.shape.at * (math.random() * 2 - 1) +
+            self.shape.up * (math.random() * 2 - 1) +
+            self.shape.right * (math.random() * 2 - 1)
+        )
+    end
+    minDir = minDir:normalize()
+
+    sm.physics.applyImpulse(self.shape, minDir * math.random(10, 20) * self.sv_mass, true)
+
+    if applyTorque then
+        sm.physics.applyTorque(self.shape.body, (self.shape.at * GetImpulseMultiplier() + self.shape.right * GetImpulseMultiplier()) * self.sv_mass, true)
     end
 end
 
@@ -447,6 +458,14 @@ function Gunship:sv_unseat(char)
     else
         self:sv_resetAction()
     end
+end
+
+function Gunship:sv_selfDestruct(char)
+    self.sv_destroyed = true
+    self.sv_destructionTimer = destructionTime
+    self:sv_unseat(char)
+    self:sv_applyDeathImpulse(false)
+    self:setClientData(true, 5)
 end
 
 
@@ -544,6 +563,11 @@ function Gunship:client_onCreate()
         text3D:update("100%")
         self.wgui["engine"..i.."HealthText"] = text3D
     end
+
+    local text3D = Text3D():init(8, 3)
+    text3D:update("")
+    text3D:setColour(red)
+    self.wgui.ejectionText = text3D
 
     for i = 1, 10 do
         local bar = sm.effect.createEffect("ShapeRenderable")
@@ -658,6 +682,9 @@ function Gunship:cl_onClientDataUpdate(args)
         end
     elseif channel == 4 then
         self.cl_forceStatic = data
+    elseif channel == 5 then
+        self.cl_destroyed = true
+        self.cl_actions = {}
     end
 end
 
@@ -758,6 +785,11 @@ function Gunship:client_onFixedUpdate(dt)
     end
 
     if self.seatedTick then
+        if self.cl_ejecting and not self.wgui.ejectionText:isPlaying() then
+            self.wgui.ejectionText:update("EJECTING")
+            self.wgui.ejectionText:start()
+        end
+
         if self.cl_destroyed and tick % 10 == 0 then
             self.flash = not self.flash
             sm.effect.playHostedEffect("Gunship - AlarmSound", self.interactable, nil, { offsetPosition = VEC3_UP * 4.5 + VEC3_FORWARD  * 0.25 })
@@ -836,7 +868,14 @@ function Gunship:client_onAction(action, state)
         elseif action == 7 then
             self.tracingTurret = not self.tracingTurret
         elseif action == 8 then
-            self.network:sendToServer("sv_takeDamage", maxHealth)
+            self.gui:close()
+            self:cl_stopUI()
+
+            self.cl_ejecting = true
+            self.cl_selfDestruction = true
+            self:cl_delayEjection(ejectionDelay)
+
+            -- self.network:sendToServer("sv_takeDamage", maxHealth)
         end
     end
 
@@ -1161,7 +1200,7 @@ function Gunship:cl_updateCockpitUI(dt)
     self.wgui.engine1Health:setRotation(healthRotation)
     self.wgui.engine1Health:setScale(uiEngineScale)
 
-    self.wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset * 2.3 + uiEngineUpOffset)
+    self.wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
     self.wgui.engine1HealthText:setRotation(healthRotation)
     self.wgui.engine1HealthText:setScale(VEC3_ONE * 0.011)
     self.wgui.engine1HealthText:render()
@@ -1170,7 +1209,7 @@ function Gunship:cl_updateCockpitUI(dt)
     self.wgui.engine2Health:setRotation(healthRotation)
     self.wgui.engine2Health:setScale(uiEngineScale)
 
-    self.wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 2.92 + uiEngineUpOffset)
+    self.wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 + uiEngineUpOffset)
     self.wgui.engine2HealthText:setRotation(healthRotation)
     self.wgui.engine2HealthText:setScale(VEC3_ONE * 0.011)
     self.wgui.engine2HealthText:render()
@@ -1179,7 +1218,7 @@ function Gunship:cl_updateCockpitUI(dt)
     self.wgui.engine3Health:setRotation(healthRotation)
     self.wgui.engine3Health:setScale(uiEngineScale)
 
-    self.wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset * 2.3 - uiEngineUpOffset)
+    self.wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
     self.wgui.engine3HealthText:setRotation(healthRotation)
     self.wgui.engine3HealthText:setScale(VEC3_ONE * 0.011)
     self.wgui.engine3HealthText:render()
@@ -1188,10 +1227,17 @@ function Gunship:cl_updateCockpitUI(dt)
     self.wgui.engine4Health:setRotation(healthRotation)
     self.wgui.engine4Health:setScale(uiEngineScale)
 
-    self.wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 2.92 - uiEngineUpOffset)
+    self.wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 - uiEngineUpOffset)
     self.wgui.engine4HealthText:setRotation(healthRotation)
     self.wgui.engine4HealthText:setScale(VEC3_ONE * 0.011)
     self.wgui.engine4HealthText:render()
+
+    if self.cl_ejecting then
+        self.wgui.ejectionText:setPosition(shapePos + up * 4.4 + at * 0.1)
+        self.wgui.ejectionText:setRotation(shapeRot)
+        self.wgui.ejectionText:setScale(VEC3_ONE * 0.03)
+        self.wgui.ejectionText:render()
+    end
 end
 
 function Gunship:cl_updateThrusters(dt)
@@ -1333,7 +1379,11 @@ function Gunship:cl_delayEjection(delay)
 end
 
 function Gunship:cl_delayUnseat()
-    self.network:sendToServer("sv_unseat", sm.localPlayer.getPlayer().character)
+    if self.cl_selfDestruction then
+        self.network:sendToServer("sv_selfDestruct", sm.localPlayer.getPlayer().character)
+    else
+        self.network:sendToServer("sv_unseat", sm.localPlayer.getPlayer().character)
+    end
 end
 
 function Gunship:cl_delayFade(delay)
