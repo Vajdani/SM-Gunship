@@ -950,7 +950,7 @@ function Gunship:cl_updateCockpitUI(dt)
         end
     end
 
-    local healthCenter = base + right * 0.275
+    local healthCenter = base + right * 0.32
     local healthRotation = shapeRot * angleAxis(math.rad(45), VEC3_FORWARD)
     self.wgui.mainHealth:setPosition(healthCenter)
     self.wgui.mainHealth:setRotation(healthRotation)
