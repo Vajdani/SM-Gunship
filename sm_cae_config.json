@@ -1,0 +1,8 @@
+{
+    "soundList": {
+        "delayed_annihilation": {
+            "path":"$CONTENT_DATA/Audio/delayed_annihilation.mp3",
+            "is3D": false
+        }
+    }
+}

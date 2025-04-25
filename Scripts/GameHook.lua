@@ -1,15 +1,28 @@
 ---@diagnostic disable:duplicate-set-field
 
 dofile "$SURVIVAL_DATA/Scripts/util.lua"
-dofile "util.lua"
 dofile "font.lua"
+dofile "util.lua"
 
 ---@class GameHook : ToolClass
 GameHook = class()
 
 function GameHook:client_onCreate()
+    if g_gameHook then return end
+
     dofile "$CONTENT_DATA/Scripts/ProjectileLibrary.lua"
-    g_font = Font():init()
+
+    g_gameHook = self.tool
+end
+
+function GameHook:cl_delayFade(delay)
+    if delay > 0 then
+        delay = delay - 1
+        sm.event.sendToTool(self.tool, "cl_delayFade", delay)
+        return
+    end
+
+    sm.gui.endFadeToBlack(2)
 end
 
 

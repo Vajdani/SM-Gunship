@@ -7,7 +7,7 @@
 ---@field cl_damageAreas DamageArea[]
 Gunship = class()
 Gunship.maxParentCount = 0
-Gunship.maxChildCount = 7
+Gunship.maxChildCount = 6
 Gunship.connectionInput = sm.interactable.connectionType.none
 Gunship.connectionOutput = sm.interactable.connectionType.seated
 Gunship.colorNormal = colour(0xcb0a00ff)
@@ -61,6 +61,10 @@ local destructionResistence = {
     [9] = 0,
     [10] = 0
 }
+local ejectionDelay = 20
+local fadeDelay = 10
+local deathFadeDelay = 3 * 40
+local kamikazeRadius = 50
 local engineScale = vec3(0.75, 1.5, 2.065) * 0.5
 local engineOffset = 0.275
 
@@ -188,6 +192,15 @@ function Gunship:server_onFixedUpdate(dt)
     if self.sv_destructionTimer then
         self.sv_destructionTimer = self.sv_destructionTimer - 1
         if self.sv_destructionTimer <= 0 then
+            local char = self.interactable:getSeatCharacter()
+            if char then
+                self.interactable:setSeatCharacter(char)
+                char:setWorldPosition(self:GetCameraPosition() + self.shape.at * 1.5)
+                char:setTumbling(true)
+
+                sm.event.sendToPlayer(char:getPlayer(), "sv_e_eat", { hpGain = -1000 })
+            end
+
             print(("[Gunship %s] Exploded"):format(self.shape.id))
             sm.physics.explode(self.shape.worldPosition, 10, 10, 20, 100, "PropaneTank - ExplosionBig")
             self.shape:destroyPart()
@@ -336,11 +349,46 @@ function Gunship:sv_takeDamage(damage)
         self.sv_destructionTimer = destructionTime
         self.sv_actions = {}
 
-        for k, v in pairs(self.sv_damageAreas) do
-            sm.effect.playEffect("PropaneTank - ExplosionSmall", v.trigger:getWorldPosition())
-            sm.areaTrigger.destroy(v.trigger)
+        if Count(self.sv_damageAreas) > 0 then
+            for k, v in pairs(self.sv_damageAreas) do
+                sm.effect.playEffect("PropaneTank - ExplosionSmall", v.trigger:getWorldPosition())
+                sm.areaTrigger.destroy(v.trigger)
+            end
+            self.sv_damageAreas = {}
+
+            local char, cId = self.interactable:getSeatCharacter(), self.shape.body:getCreationId()
+            local pos = self.shape.worldPosition
+            local contacts = sm.physics.getSphereContacts(pos, kamikazeRadius)
+            local objs = {}
+            concat(objs, contacts.harvestables)
+            concat(objs, contacts.characters)
+            concat(objs, contacts.bodies)
+
+            local minDir, minDist
+            for k, v in pairs(objs) do
+                local type = type(v)
+                if type == "Harvestable" or type == "Character" and v ~= char or type == "Body" and v:getCreationId() ~= cId then
+                    local dist = v.worldPosition - pos
+                    local length = dist:length2()
+                    if not minDist or length < minDist then
+                        minDir = dist
+                        minDist = length
+                    end
+                end
+            end
+
+            if not minDir then
+                minDir = (
+                    self.shape.at * (math.random() * 2 - 1) +
+                    self.shape.up * (math.random() * 2 - 1) +
+                    self.shape.right * (math.random() * 2 - 1)
+                )
+            end
+            minDir = minDir:normalize()
+
+            sm.physics.applyImpulse(self.shape, minDir * math.random(10, 20) * self.sv_mass, true)
+            sm.physics.applyTorque(self.shape.body, (VEC3_FORWARD * math.random(10, 20) + VEC3_RIGHT * math.random(5, 10)) * self.sv_mass)
         end
-        self.sv_damageAreas = {}
 
         self:setClientData(true, 3)
     else
@@ -389,9 +437,10 @@ function Gunship:sv_onRocketExplode()
 end
 
 function Gunship:sv_unseat(char)
+    local pos = self:GetCameraPosition() + self.shape.at * 1.5
+    char:setWorldPosition(pos)
+
     if self.sv_destroyed then
-        local pos = self:GetCameraPosition() + self.shape.at
-        char:setWorldPosition(pos)
         sm.physics.applyImpulse(char, self.shape.at * char.mass * 50)
 
         sm.effect.playEffect("Vacuumpipe - Blowout", pos, nil, self.shape.worldRotation)
@@ -416,7 +465,25 @@ function Gunship:client_onCreate()
     for i = 1, 4 do
         local thruster = sm.effect.createEffect("Thruster - Level 5", self.interactable, "jnt_engine" .. i .. "_effect")
         thruster:setOffsetRotation(angleAxis(math.rad(90), VEC3_RIGHT))
-        table.insert(self.thrusters, thruster)
+        table.insert(self.thrusters, {
+            effects = { thrust = thruster },
+            start = function(_self)
+                if sm.exists(_self.effects.thrust) then
+                    _self.effects.thrust:start()
+                end
+            end,
+            stop = function(_self)
+                if sm.exists(_self.effects.thrust) then
+                    _self.effects.thrust:stop()
+                end
+            end,
+            destroy = function(_self)
+                for k, v in pairs(_self.effects) do
+                    v:stop()
+                    _self.effects[k] = nil
+                end
+            end
+        })
     end
 
     local aimPoint = sm.effect.createEffect("ShapeRenderable")
@@ -478,6 +545,12 @@ function Gunship:client_onCreate()
         self.wgui["engine"..i.."HealthText"] = text3D
     end
 
+    for i = 1, 10 do
+        local bar = sm.effect.createEffect("ShapeRenderable")
+        bar:setParameter("uuid", obj_uishape)
+        self.wgui["bar" .. i] = bar
+    end
+
     self.gui = sm.gui.createSeatGui()
 
     self.cl_health = 0
@@ -510,11 +583,10 @@ function Gunship:client_onCreate()
         }
     end
 
-    self.alarm = sm.effect.createEffect("Gunship - AlarmLight", self.interactable)
-    self.alarm:setOffsetPosition(VEC3_UP * 4.5 + VEC3_FORWARD  * 0.25)
-
     self.cl_destroyed = false
     self.cl_forceStatic = false
+
+    self.cl_tpOverride = false
 end
 
 function Gunship:client_onDestroy()
@@ -543,7 +615,18 @@ function Gunship:client_onDestroy()
         sm.areaTrigger.destroy(v.trigger)
     end
 
-    self.alarm:destroy()
+    if self.alarm then
+        self.alarm:destroy()
+    end
+
+    if self.cl_ejecting then
+        self:cl_delayFade(0)
+    end
+
+    if self.cl_destroyed and self.seatedTick then
+        sm.gui.startFadeToBlack(0.1, deathFadeDelay)
+        sm.event.sendToTool(g_gameHook, "cl_delayFade", deathFadeDelay)
+    end
 end
 
 function Gunship:cl_onClientDataUpdate(args)
@@ -567,22 +650,20 @@ function Gunship:cl_onClientDataUpdate(args)
         self.cl_damageAreas = {}
 
         self.cockpit:stop()
-        self.alarm:start()
+
+        if self.seatedTick then
+            self.alarm = sm.effect.createEffect("Gunship - AlarmLight", self.interactable)
+            self.alarm:setOffsetPosition(VEC3_UP * 4.5 + VEC3_FORWARD  * 0.25)
+            self.alarm:start()
+        end
     elseif channel == 4 then
         self.cl_forceStatic = data
     end
 end
 
-local rocketOffset = {
-    vec3(-1.0625, -4.625, 0.187502),
-    vec3(1.0625, -4.625, 0.187502),
-}
-local turretOffset = {
-    vec3(0, -3.3125, -1)
-}
 function Gunship:client_onUpdate(dt)
     self.cockpit:setParameter("color", self.shape.color)
-    self:SetBodyVisibility(not self.seatedTick or self.controllingRocket) --or self.cl_destroyed)
+    self:SetBodyVisibility(not self.seatedTick or self.controllingRocket or self.cl_ejecting)
     self:cl_updateThrusters(dt)
 
     local seatedChar = self.interactable:getSeatCharacter()
@@ -614,7 +695,7 @@ function Gunship:client_onUpdate(dt)
     self:cl_updateTurret(seatedChar, dt)
 
     if self.seatedTick and not self.controllingRocket then
-        if not self.cockpit:isPlaying() then
+        if not self.cockpit:isPlaying() and not self.cl_ejecting then
             self.cockpit:start()
             self.aimPoint:start()
 
@@ -625,23 +706,10 @@ function Gunship:client_onUpdate(dt)
 
         self:cl_updateSeatGui()
     else
-        if self.cockpit:isPlaying() then
-            self.cockpit:stop()
-            self.aimPoint:stop()
-
-            for i = 1, 2 do
-                self.tracers[i]:stop()
-            end
-
-            for k, v in pairs(self.wgui) do
-                v:stop()
-            end
-        end
-
         return
     end
 
-    if self.cl_destroyed then
+    if self.cl_destroyed and not self.cl_ejecting then
         sm.gui.setInteractionText(sm.gui.getKeyBinding("Use", true), self.flash and "#ff0000EJECT" or "EJECT", "")
     end
 
@@ -650,71 +718,36 @@ function Gunship:client_onUpdate(dt)
     local charDir = char:getSmoothViewDirection()
 
     self:cl_updateCockpitUI(dt)
+    self:cl_updateTracers(camPos, charDir, dt)
 
-    sm.camera.setCameraState(2)
+    -- self.cl_tpOverride = true
+    -- self.cl_tpOverride = false
+    if self.cl_tpOverride then
+        sm.camera.setCameraState(1)
+        sm.camera.setCameraPullback(0, 10)
+    else
+        sm.camera.setCameraState(2)
+    end
+
     sm.camera.setPosition(camPos)
     sm.camera.setDirection(charDir)
-    -- local shapePos, shapeRot, up, at, right = self:GetAccurateTransform(dt)
-    -- sm.camera.setRotation(shapeRot * angleAxis(math.rad(90), VEC3_RIGHT) * angleAxis(math.rad(180), VEC3_FORWARD))
 
     if self.cl_actions[18] then
         sm.camera.setFov(sm.camera.getDefaultFov() * zoomFraction)
     else
         sm.camera.setFov(sm.camera.getDefaultFov())
     end
-
-    local targetPos, offsets
-    if self.tracingTurret then
-        local offset = turretOffset[1]
-        local origin =
-            self.shape:getInterpolatedWorldPosition() +
-            self.shape:getInterpolatedAt() * offset.z -
-            self.shape:getInterpolatedUp() * offset.y +
-            self.shape:getInterpolatedRight() * offset.x
-        local endPos = origin + self:GetTurretDir() * aimAssistRange
-        local hit, result = sm.physics.raycast(origin, endPos, self.shape, rayFilter)
-        targetPos = hit and result.pointWorld or endPos
-
-        self:cl_setTracerColour(math.asin(self.shape:transformDirection(charDir).y) > 0 and red or green)
-
-        offsets = turretOffset
-    else
-        _, _, targetPos = self:GetRocketFireData(camPos, dt)
-        offsets = rocketOffset
-
-        self:cl_setTracerColour(green)
-    end
-
-    self.aimPoint:setPosition(targetPos)
-    if self.tracerEnabled then
-        for i = 1, 2 do
-            local offset = offsets[i]
-            if offset then
-                self.tracers[i]:update(
-                    self.shape:getInterpolatedWorldPosition() +
-                    self.shape:getInterpolatedAt() * offset.z -
-                    self.shape:getInterpolatedUp() * offset.y +
-                    self.shape:getInterpolatedRight() * offset.x +
-                    self.shape.velocity * dt, targetPos
-                )
-            else
-                self.tracers[i]:stop()
-            end
-        end
-    elseif self.tracers[1].effect:isPlaying() then
-        for i = 1, 2 do
-            self.tracers[i]:stop()
-        end
-    end
 end
 
+local mannedRocketFlag = 2 ^ 14
 function Gunship:client_onFixedUpdate(dt)
-    if #self.interactable:getChildren(2 ^ 14) == 0 and self.controllingRocket then
+    if #self.interactable:getChildren(mannedRocketFlag) == 0 and self.controllingRocket then
         self.controllingRocket = false
         self.network:sendToServer("sv_onRocketExplode")
     end
 
-    if self.shape.body:hasChanged(sm.game.getServerTick() - 1) then
+    local tick = sm.game.getServerTick()
+    if self.shape.body:hasChanged(tick - 1) then
         self.cl_mass = self:GetBodyMass()
     end
 
@@ -725,12 +758,12 @@ function Gunship:client_onFixedUpdate(dt)
     end
 
     if self.seatedTick then
-        if self.cl_destroyed and sm.game.getServerTick()%10 == 0 then
+        if self.cl_destroyed and tick % 10 == 0 then
             self.flash = not self.flash
             sm.effect.playHostedEffect("Gunship - AlarmSound", self.interactable, nil, { offsetPosition = VEC3_UP * 4.5 + VEC3_FORWARD  * 0.25 })
         end
 
-        if sm.game.getServerTick() - self.seatedTick > 10 and not seatedChar then
+        if tick - self.seatedTick > 10 and not seatedChar then
             self.seatedTick = nil
             sm.camera.setCameraState(0)
             self.gui:close()
@@ -750,14 +783,7 @@ function Gunship:client_onInteract(char, state)
     sm.event.sendToInteractable(self.interactable, "cl_seat")
 end
 
----@param velocity Vec3
-function Gunship:cl_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, source, damage, data, normal, uuid)
-    -- local effect = GetProjectileData(uuid).effect
-    -- if effect then
-    --     local dir = -velocity:normalize()
-    --     sm.effect.playEffect(effect, hitPos + dir * 0.05, nil, getRotation(dir, VEC3_UP))
-    -- end
-
+function Gunship:cl_onDamageAreaHit()
     return not sm.isHost
 end
 
@@ -770,29 +796,29 @@ function Gunship:cl_seat()
 end
 
 function Gunship:cl_unseat()
-    sm.camera.setCameraState(0)
+    if self.cl_ejecting then return end
+
     self.gui:close()
-    self.interactable:setSeatCharacter(sm.localPlayer.getPlayer().character)
-    self.seatedTick = nil
+    self:cl_stopUI()
 
     if self.cl_destroyed then
-        sm.gui.startFadeToBlack(0.01, 10)
-        sm.event.sendToInteractable(self.interactable, "cl_delayFade", 10)
-        self.network:sendToServer("sv_unseat", sm.localPlayer.getPlayer().character)
+        self.alarm:destroy()
+        self.alarm = nil
+
+        self.cl_ejecting = true
+        self:cl_delayEjection(ejectionDelay)
     else
-        self.network:sendToServer("sv_unseat")
+        sm.camera.setCameraState(0)
+        self.seatedTick = nil
+
+        local char = sm.localPlayer.getPlayer().character
+        self.interactable:setSeatCharacter(char)
+        self.network:sendToServer("sv_unseat", char)
         self:cl_resetAction()
     end
 end
 
-
-
 function Gunship:client_onAction(action, state)
-    if action == 8 and state then
-        self.network:sendToServer("sv_takeDamage", maxHealth)
-        return true
-    end
-
     if self:cl_checkRocketInput(action, state) then
         return true
     end
@@ -809,6 +835,8 @@ function Gunship:client_onAction(action, state)
             self.tracerEnabled = not self.tracerEnabled
         elseif action == 7 then
             self.tracingTurret = not self.tracingTurret
+        elseif action == 8 then
+            self.network:sendToServer("sv_takeDamage", maxHealth)
         end
     end
 
@@ -823,10 +851,11 @@ function Gunship:client_onAction(action, state)
     return true
 end
 
-local rocketIcon, tracerIcon, turretIcon =
+local rocketIcon, tracerIcon, turretIcon, selfDestructIcon =
     tostring(obj_interactive_propanetank_small),
     tostring(tool_connect),
-    tostring(obj_interactive_mountablespudgun_creative)
+    tostring(obj_interactive_mountablespudgun_creative),
+    { itemId = tostring(obj_decor_arrowsign), active = false }
 local mountedCannonUUID = "0af5379e-29e8-4eb3-b965-6b3993c8f1df"
 local MountedCannonGun = {
     ammoTypes = {
@@ -841,6 +870,7 @@ local MountedCannonGun = {
         "8d3b98de-c981-4f05-abfe-d22ee4781d33",
     }
 }
+local buttonStart = 10 - Gunship.maxChildCount - 1
 function Gunship:cl_updateSeatGui()
     self.gui:setGridItem("ButtonGrid", 0, {
         itemId = rocketIcon,
@@ -864,24 +894,26 @@ function Gunship:cl_updateSeatGui()
         })
     end
 
+    self.gui:setGridItem("ButtonGrid", 3, selfDestructIcon)
+
     local children = self.interactable:getChildren()
     for i = 1, self.maxChildCount do
         local int = children[i]
         if int then
             local uuid = tostring(int.shape.uuid)
             if uuid == mountedCannonUUID then
-                self.gui:setGridItem("ButtonGrid", 2 + i, {
+                self.gui:setGridItem("ButtonGrid", buttonStart + i, {
                     itemId = sm.GetTurretAmmoData(MountedCannonGun, sm.GetInteractableClientPublicData(int).ammoType),
                     active = int.active
                 })
             else
-                self.gui:setGridItem("ButtonGrid", 2 + i, {
+                self.gui:setGridItem("ButtonGrid", buttonStart + i, {
                     itemId = uuid,
                     active = int.active
                 })
             end
         else
-            self.gui:setGridItem("ButtonGrid", 2 + i, nil)
+            self.gui:setGridItem("ButtonGrid", buttonStart + i, nil)
         end
     end
 end
@@ -908,17 +940,82 @@ function Gunship:cl_updateThrusterHealth(data)
     text3D:update(max(math.ceil(health / thrusterMaxHealth * 100), 0).."%")
     text3D:setColour(textColour or boxColour)
 
-    if not alive then
+    if alive then
+        if health <= thrusterMaxHealth * 0.5 and not self.thrusters[id].effects.smoke then
+            local smoke = sm.effect.createEffect("Gunship - ThrusterSmoke", self.interactable, "jnt_engine"..id)
+            local rot = angleAxis((id == 1 or id == 3) and -math.rad(30) or math.rad(30), VEC3_UP)
+            smoke:setOffsetPosition(rot * VEC3_UP * -0.1)
+            smoke:setOffsetRotation(rot)
+            smoke:start()
+
+            self.thrusters[id].effects.smoke = smoke
+        end
+    else
         self.wgui[engineId]:setParameter("color", black)
 
         if self.thrusters[id] then
             self.thrusters[id]:destroy()
-            self.thrusters[id] = nil
+
+            local fire = sm.effect.createEffect("Fire -medium01", self.interactable, "jnt_engine"..id)
+            local rot = angleAxis((id == 1 or id == 3) and math.rad(75) or -math.rad(75), VEC3_FORWARD)
+            fire:setOffsetPosition(rot * VEC3_UP * -0.1)
+            fire:setOffsetRotation(rot)
+            fire:start()
+            self.thrusters[id].effects.fire = fire
         end
 
         if self.cl_damageAreas[id] then
             sm.areaTrigger.destroy(self.cl_damageAreas[id].trigger)
             self.cl_damageAreas[id] = nil
+        end
+    end
+end
+
+local rocketOffset = {
+    vec3(-1.0625, -4.625, 0.187502),
+    vec3(1.0625, -4.625, 0.187502),
+}
+local turretOffset = {
+    vec3(0, -3.3125, -1)
+}
+function Gunship:cl_updateTracers(camPos, charDir, dt)
+    local pos, at, up, right =
+        self.shape:getInterpolatedWorldPosition() + self.shape.velocity * dt,
+        self.shape:getInterpolatedAt(),
+        self.shape:getInterpolatedUp(),
+        self.shape:getInterpolatedRight()
+
+    local targetPos, offsets
+    if self.tracingTurret then
+        local offset = turretOffset[1]
+        local origin = pos + at * offset.z - up * offset.y + right * offset.x
+        local endPos = origin + self:GetTurretDir() * aimAssistRange
+        local hit, result = sm.physics.raycast(origin, endPos, self.shape, rayFilter)
+        targetPos = hit and result.pointWorld or endPos
+
+        self:cl_setTracerColour(math.asin(self.shape:transformDirection(charDir).y) > 0 and red or green)
+
+        offsets = turretOffset
+    else
+        _, _, targetPos = self:GetRocketFireData(camPos, dt)
+        offsets = rocketOffset
+
+        self:cl_setTracerColour(green)
+    end
+
+    self.aimPoint:setPosition(targetPos)
+    if self.tracerEnabled then
+        for i = 1, 2 do
+            local offset = offsets[i]
+            if offset then
+                self.tracers[i]:update(pos + at * offset.z - up * offset.y + right * offset.x, targetPos)
+            else
+                self.tracers[i]:stop()
+            end
+        end
+    elseif self.tracers[1].effect:isPlaying() then
+        for i = 1, 2 do
+            self.tracers[i]:stop()
         end
     end
 end
@@ -1000,16 +1097,6 @@ function Gunship:cl_updateCockpitUI(dt)
     --     self.init = false
     -- end
 
-    if not self.init then
-        for i = 1, 10 do
-            local bar = sm.effect.createEffect("ShapeRenderable")
-            bar:setParameter("uuid", obj_uishape)
-            self.wgui["bar" .. i] = bar
-        end
-
-        self.init = true
-    end
-
     local base = shapePos + up * 4.4 + at * 0.25
     local barScale = vec3(0.03, 0.0025, 0)
     local verticalScale, horizontalScale = 0.09 - barScale.y * 0.5, 0.11 - barScale.x * 0.5
@@ -1056,12 +1143,6 @@ function Gunship:cl_updateCockpitUI(dt)
     self.wgui.bar10:setPosition(base + sidebarOffset)
     self.wgui.bar10:setRotation(shapeRot)
     self.wgui.bar10:setScale(sideBarScale)
-
-    if not self.wgui.bar1:isPlaying() then
-        for i = 1, 10 do
-            self.wgui["bar" .. i]:start()
-        end
-    end
 
     local healthCenter = base + right * 0.32
     local healthRotation = shapeRot * angleAxis(math.rad(45), VEC3_FORWARD)
@@ -1121,8 +1202,8 @@ function Gunship:cl_updateThrusters(dt)
     local rotation = -self.shape.body.angularVelocity.z * 0.1 * offsetMultiplier
 
     local animSpeed = dt * 2.5
-    self.leftThrusterAnim = sm.util.lerp(self.leftThrusterAnim, baseAnim - rotation, animSpeed)
-    self.rightThrusterAnim = sm.util.lerp(self.rightThrusterAnim, baseAnim + rotation, animSpeed)
+    self.leftThrusterAnim = clamp(lerp(self.leftThrusterAnim, baseAnim - rotation, animSpeed), 0.001, 0.999)
+    self.rightThrusterAnim = clamp(lerp(self.rightThrusterAnim, baseAnim + rotation, animSpeed), 0.001, 0.999)
 
     self.interactable:setAnimProgress("engine1_rotate", self.rightThrusterAnim)
     self.interactable:setAnimProgress("engine2_rotate", self.leftThrusterAnim)
@@ -1154,7 +1235,7 @@ function Gunship:cl_updateTurret(seatedChar, dt)
 
     local animSpeed = dt * turretTurnSpeed
     self.horizontalTurretAnim = sm.quat.slerp(self.horizontalTurretAnim, angleAxis(horizontal, VEC3_FORWARD), animSpeed)
-    self.verticalTurretAnim = sm.util.lerp(self.verticalTurretAnim, vertical, animSpeed)
+    self.verticalTurretAnim = lerp(self.verticalTurretAnim, vertical, animSpeed)
 
     self.interactable:setAnimProgress("turret_rotate_vertical", self.verticalTurretAnim)
 
@@ -1235,6 +1316,26 @@ function Gunship:cl_resetAction()
     end
 end
 
+function Gunship:cl_delayEjection(delay)
+    if delay > 0 then
+        delay = delay - 1
+        sm.event.sendToInteractable(self.interactable, "cl_delayEjection", delay)
+        return
+    end
+
+    sm.camera.setCameraState(0)
+    sm.gui.startFadeToBlack(0.01, fadeDelay)
+    sm.event.sendToInteractable(self.interactable, "cl_delayFade", fadeDelay)
+
+    self.interactable:setSeatCharacter(sm.localPlayer.getPlayer().character)
+    self.seatedTick = nil
+    sm.event.sendToInteractable(self.interactable, "cl_delayUnseat")
+end
+
+function Gunship:cl_delayUnseat()
+    self.network:sendToServer("sv_unseat", sm.localPlayer.getPlayer().character)
+end
+
 function Gunship:cl_delayFade(delay)
     if delay > 0 then
         delay = delay - 1
@@ -1245,6 +1346,18 @@ function Gunship:cl_delayFade(delay)
     sm.gui.endFadeToBlack(2)
 end
 
+function Gunship:cl_stopUI()
+    self.cockpit:stop()
+    self.aimPoint:stop()
+
+    for i = 1, 2 do
+        self.tracers[i]:stop()
+    end
+
+    for k, v in pairs(self.wgui) do
+        v:stop()
+    end
+end
 
 
 function Gunship:GetCameraPosition(dt)

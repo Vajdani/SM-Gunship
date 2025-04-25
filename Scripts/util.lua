@@ -1,9 +1,15 @@
+if not g_font then
+    g_font = Font():init()
+end
+
 vec3 = sm.vec3.new
 uuid = sm.uuid.new
 colour = sm.color.new
 getRotation = sm.vec3.getRotation
 getGravity = sm.physics.getGravity
 angleAxis = sm.quat.angleAxis
+clamp = sm.util.clamp
+lerp = sm.util.lerp
 
 function CalculateRightVector(vector)
     local yaw = math.atan2(vector.y, vector.x) - math.pi / 2
@@ -27,6 +33,15 @@ oldQuatSLerp = oldQuatSLerp or sm.quat.slerp
 ---@diagnostic disable-next-line:duplicate-set-field
 function sm.quat.slerp(q1, q2, t)
     return quat_normalise(oldQuatSLerp(q1, q2, t))
+end
+
+function Count(table)
+    local count = 0
+    for k, v in pairs(table) do
+        count = count + 1
+    end
+
+    return count
 end
 
 VEC3_RIGHT = vec3(1, 0, 0)

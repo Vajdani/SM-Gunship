@@ -88,10 +88,11 @@
 			"color": "ff0000",
 			"radius": 1,
 			"intensity": 10.0,
-			"offsetPosition": [0, 0, 0]
+			"offsetPosition": [0, 0, 0],
+
+			"CAE_Volume": 0.1
 		},
-		"parameterCurves":
-		{
+		"parameterCurves": {
 			"offsetPosition":
 			{
 				"loop": 0.25,
@@ -119,6 +120,14 @@
 					"offsetPosition"
 				],
 				"delay": 0.0
+			},
+			{
+				"type": "audio",
+				"name": "delayed_annihilation",
+				"duration": 4.8,
+				"parameters": [
+					"CAE_Volume"
+				]
 			}
 		]
 	},
@@ -133,11 +142,31 @@
 				"duration": 0.15,
 				"name": "event:/music/robotheads/retrofmblip",
 				"type": "audio",
-				"parameters":
-				[
+				"parameters": [
 					"pitch"
 				]
 			}
+		]
+	},
+	"Gunship - ThrusterSmoke":
+	{
+		"effectList":
+		[
+			{
+				"type": "particle",
+				"name": "p_gunship_thrustersmoke",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0.625 },
+				"attached": true,
+				"delay": 0.0
+			}
+			// {
+			// 	"type": "particle",
+			// 	"name": "p_enviroment_smoke_blowingsmoke03",
+			// 	"offset": { "x": 0.0, "y": 0.0, "z": 0.0 },
+			// 	"direction": { "x": 0.0, "y": 1.0, "z": 0.0 },
+			// 	"attached": false,
+			// 	"delay": 0.0
+			// }
 		]
 	}
 }
