@@ -83,15 +83,60 @@
 			"shakeStrength": 0.005
 		}
 	},
-	"Gunship - Cockpit":
-	{
-		"effectList":
-		[
+	"Gunship - AlarmLight": {
+		"parameterList": {
+			"color": "ff0000",
+			"radius": 1,
+			"intensity": 10.0,
+			"offsetPosition": [0, 0, 0]
+		},
+		"parameterCurves":
+		{
+			"offsetPosition":
 			{
-				"type": "renderable",
-				"name": "$CONTENT_DATA/Objects/Renderables/gunship_effect.rend",
+				"loop": 0.25,
+				"speed": 1,
+				"timeline":
+				[
+					{ "time": 0, "value": [ 0, 0, 0 ] },
+					{ "time": 0.1, "value": [ 0, 0, 0 ] },
+					{ "time": 0.11, "value": [ 0, 1000, 0 ] },
+					{ "time": 0.25, "value": [ 0, 1000, 0 ] }
+				]
+			}
+		},
+		"effectList": [
+			{
+				"attached": true,
+				"type": "pointLight",
+				"name": "",
 				"offset": { "x": 0.0, "y": 0.0, "z": 0.0 },
+				"parameters":
+				[
+					"color",
+					"radius",
+					"intensity",
+					"offsetPosition"
+				],
 				"delay": 0.0
+			}
+		]
+	},
+	"Gunship - AlarmSound": {
+		"parameterList": {
+			"pitch": 0.5
+		},
+		"effectList": [
+			{
+				"attached": true,
+				"delay": 0.0,
+				"duration": 0.15,
+				"name": "event:/music/robotheads/retrofmblip",
+				"type": "audio",
+				"parameters":
+				[
+					"pitch"
+				]
 			}
 		]
 	}

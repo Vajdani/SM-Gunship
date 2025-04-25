@@ -41,8 +41,14 @@ local actions = {
     [21] = true, --Up
     [16] = true, --Boost
 }
+local destroyActions = {
+    [5] = true,
+    [18] = true,
+    [19] = true,
+}
 local turnLimit = 0.3
 local rayFilter = sm.physics.filter.default + sm.physics.filter.areaTrigger
+local destructionTime = 5 * 40
 local destructionResistence = {
     [1] = 0.9,
     [2] = 0.75,
@@ -82,7 +88,7 @@ function Gunship:server_onCreate()
     self.sv_mass = self:GetBodyMass()
 
     self.sv_health = maxHealth
-    self.network:setClientData(self.sv_health, 1)
+    self:setClientData(self.sv_health, 1)
 
     self.sv_damageAreas = {}
     for i = 1, 4 do
@@ -98,6 +104,8 @@ function Gunship:server_onCreate()
             trigger = trigger
         }
     end
+
+    self.sv_destroyed = false
 end
 
 function Gunship:server_onDestroy()
@@ -156,9 +164,7 @@ function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
     print(("[Gunship %s Thruster %s] Recieved %s damage (%s/%s)"):format(self.shape.id, id, finalDamage, area.health, thrusterMaxHealth))
 
     self:sv_takeDamage(finalDamage * 0.5)
-
-    self.network:setClientData(self.sv_health, 1)
-    self.network:setClientData({ id = id, health = area.health }, 2)
+    self:setClientData({ id = id, health = area.health }, 2)
 
     if area.health <= 0 then
         sm.effect.playEffect("PropaneTank - ExplosionSmall", trigger:getWorldPosition())
@@ -179,6 +185,16 @@ function Gunship:server_onCollision(other, position, selfPointVelocity, otherPoi
 end
 
 function Gunship:server_onFixedUpdate(dt)
+    if self.sv_destructionTimer then
+        self.sv_destructionTimer = self.sv_destructionTimer - 1
+        if self.sv_destructionTimer <= 0 then
+            print(("[Gunship %s] Exploded"):format(self.shape.id))
+            sm.physics.explode(self.shape.worldPosition, 10, 10, 20, 100, "PropaneTank - ExplosionBig")
+            self.shape:destroyPart()
+            return
+        end
+    end
+
     local missingEngines = self:UpdateDamageAreas()
 
     local char = self.interactable:getSeatCharacter()
@@ -226,6 +242,8 @@ function Gunship:UpdateDamageAreas()
 end
 
 function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
+    if self.sv_destroyed or self.cl_destroyed then return end
+
     local _actions = self.sv_actions or self.cl_actions
     local damageAreas = self.sv_damageAreas or self.cl_damageAreas
     local mass = self.sv_mass or self.cl_mass
@@ -248,7 +266,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
     local torque =
         -body.angularVelocity * 0.3 -
         self.shape.up * (BoolToNum(_actions[1]) - BoolToNum(_actions[2])) * 0.15
-    if _actions[18] or self.forceStatic then
+    if _actions[18] or (self.sv_forceStatic or self.cl_forceStatic) then
         torque = torque + CalculateRightVector(self.aimDirection):cross(shape.right)
     else
         self.aimDirection = direction
@@ -308,19 +326,31 @@ function Gunship:sv_takeDamage(damage)
 
     damage = math.ceil(damage)
 
-    self.sv_health = self.sv_health - damage
     print(("[Gunship %s] Recieved %s damage (%s/%s)"):format(self.shape.id, damage, self.sv_health, maxHealth))
-    if self.sv_health <= 0 then
-        print(self.shape, "exploded")
 
-        sm.physics.explode(self.shape.worldPosition, 10, 10, 20, 100, "PropaneTank - ExplosionBig")
-        self.shape:destroyPart()
+    self.sv_health = self.sv_health - damage
+    if self.sv_health <= 0 then
+        print(("[Gunship %s] Took fatal damage!"):format(self.shape.id))
+
+        self.sv_destroyed = true
+        self.sv_destructionTimer = destructionTime
+        self.sv_actions = {}
+
+        for k, v in pairs(self.sv_damageAreas) do
+            sm.effect.playEffect("PropaneTank - ExplosionSmall", v.trigger:getWorldPosition())
+            sm.areaTrigger.destroy(v.trigger)
+        end
+        self.sv_damageAreas = {}
+
+        self:setClientData(true, 3)
     else
-        self.network:setClientData(self.sv_health, 1)
+        self:setClientData(self.sv_health, 1)
     end
 end
 
 function Gunship:sv_updateAction(args)
+    if self.sv_destroyed and not destroyActions[args[1]] then return end
+
     self.sv_actions[args[1]] = args[2]
     self.network:sendToClients("cl_updateAction", args)
 end
@@ -344,13 +374,33 @@ function Gunship:sv_fireRocket(args)
     sm.projectile.projectileAttack(projectile_explosivetape, rocketDamage, firePos + fireDir, fireDir * rocketVelocity, args.player)
 end
 
+function Gunship:sv_onRocketInput(data)
+    sm.event.sendToInteractable(data.cannon, "sv_onRocketInput", { action = data.action, state = data.state })
+end
+
 function Gunship:sv_onRocketFire()
-    self.forceStatic = true
+    self.sv_forceStatic = true
+    self:setClientData(true, 4)
 end
 
 function Gunship:sv_onRocketExplode()
-    self.forceStatic = false
+    self.sv_forceStatic = false
+    self:setClientData(false, 4)
 end
+
+function Gunship:sv_unseat(char)
+    if self.sv_destroyed then
+        local pos = self:GetCameraPosition() + self.shape.at
+        char:setWorldPosition(pos)
+        sm.physics.applyImpulse(char, self.shape.at * char.mass * 50)
+
+        sm.effect.playEffect("Vacuumpipe - Blowout", pos, nil, self.shape.worldRotation)
+    else
+        self:sv_resetAction()
+    end
+end
+
+
 
 function Gunship:client_onCreate()
     self.cl_actions = {}
@@ -459,6 +509,12 @@ function Gunship:client_onCreate()
             trigger = trigger
         }
     end
+
+    self.alarm = sm.effect.createEffect("Gunship - AlarmLight", self.interactable)
+    self.alarm:setOffsetPosition(VEC3_UP * 4.5 + VEC3_FORWARD  * 0.25)
+
+    self.cl_destroyed = false
+    self.cl_forceStatic = false
 end
 
 function Gunship:client_onDestroy()
@@ -486,42 +542,34 @@ function Gunship:client_onDestroy()
     for k, v in pairs(self.cl_damageAreas) do
         sm.areaTrigger.destroy(v.trigger)
     end
+
+    self.alarm:destroy()
 end
 
-function Gunship:client_onClientDataUpdate(data, channel)
+function Gunship:cl_onClientDataUpdate(args)
+    local data, channel = args[1], args[2]
     if channel == 1 then
         self.cl_health = data
+        self:cl_updateBodyHealth(data)
+    elseif channel == 2 then
+        self:cl_updateThrusterHealth(data)
+    elseif channel == 3 then
+        self.cl_destroyed = data
+        self.cl_actions = {}
 
-        local colour = self:GetHealthColour(data, maxHealth)
-        self.wgui.mainHealth:setParameter("color", colour)
+        self.engine:stop()
 
-        self.wgui.mainHealthText:update(max(math.ceil(data / maxHealth * 100), 0).."%")
-        self.wgui.mainHealthText:setColour(colour)
-    else
-        local id, health = data.id, data.health
-        local alive = health > 0
-        self.interactable:setSubMeshVisible("engine"..id, alive)
+        self:cl_updateBodyHealth(0)
 
-        local colour = self:GetHealthColour(health, thrusterMaxHealth)
-        if alive then
-            self.wgui["engine"..id.."Health"]:setParameter("color", colour)
-        else
-            self.wgui["engine"..id.."Health"]:setParameter("color", black)
-
-            if self.thrusters[id] then
-                self.thrusters[id]:destroy()
-                self.thrusters[id] = nil
-            end
-
-            if self.cl_damageAreas[id] then
-                sm.areaTrigger.destroy(self.cl_damageAreas[id].trigger)
-                self.cl_damageAreas[id] = nil
-            end
+        for k, v in pairs(self.cl_damageAreas) do
+            self:cl_updateThrusterHealth({ id = k, health = 0 })
         end
+        self.cl_damageAreas = {}
 
-        local text3D = self.wgui["engine"..id.."HealthText"]
-        text3D:update(max(math.ceil(health / thrusterMaxHealth * 100), 0).."%")
-        text3D:setColour(colour)
+        self.cockpit:stop()
+        self.alarm:start()
+    elseif channel == 4 then
+        self.cl_forceStatic = data
     end
 end
 
@@ -534,11 +582,11 @@ local turretOffset = {
 }
 function Gunship:client_onUpdate(dt)
     self.cockpit:setParameter("color", self.shape.color)
-    self:SetBodyVisibility(not self.seatedTick or self.controllingRocket)
+    self:SetBodyVisibility(not self.seatedTick or self.controllingRocket) --or self.cl_destroyed)
     self:cl_updateThrusters(dt)
 
     local seatedChar = self.interactable:getSeatCharacter()
-    if seatedChar then
+    if seatedChar and not self.cl_destroyed then
         if not self.engine:isPlaying() then
             for k, v in pairs(self.thrusters) do
                 v:start()
@@ -591,6 +639,10 @@ function Gunship:client_onUpdate(dt)
         end
 
         return
+    end
+
+    if self.cl_destroyed then
+        sm.gui.setInteractionText(sm.gui.getKeyBinding("Use", true), self.flash and "#ff0000EJECT" or "EJECT", "")
     end
 
     local camPos = self:GetCameraPosition(dt)
@@ -672,15 +724,22 @@ function Gunship:client_onFixedUpdate(dt)
         self:ApplyPhysics(seatedChar, self.shape, self.shape.body, self.shape.velocity, missingEngines, dt)
     end
 
-    if self.seatedTick and sm.game.getServerTick() - self.seatedTick > 10 and not seatedChar then
-        self.seatedTick = nil
-        sm.camera.setCameraState(0)
-        self.gui:close()
+    if self.seatedTick then
+        if self.cl_destroyed and sm.game.getServerTick()%10 == 0 then
+            self.flash = not self.flash
+            sm.effect.playHostedEffect("Gunship - AlarmSound", self.interactable, nil, { offsetPosition = VEC3_UP * 4.5 + VEC3_FORWARD  * 0.25 })
+        end
+
+        if sm.game.getServerTick() - self.seatedTick > 10 and not seatedChar then
+            self.seatedTick = nil
+            sm.camera.setCameraState(0)
+            self.gui:close()
+        end
     end
 end
 
 function Gunship:client_canInteract()
-    return self.interactable:getSeatCharacter() == nil
+    return self.interactable:getSeatCharacter() == nil and not self.cl_destroyed
 end
 
 function Gunship:client_onInteract(char, state)
@@ -710,25 +769,42 @@ function Gunship:cl_seat()
     self.seatedTick = sm.game.getServerTick()
 end
 
+function Gunship:cl_unseat()
+    sm.camera.setCameraState(0)
+    self.gui:close()
+    self.interactable:setSeatCharacter(sm.localPlayer.getPlayer().character)
+    self.seatedTick = nil
+
+    if self.cl_destroyed then
+        sm.gui.startFadeToBlack(0.01, 10)
+        sm.event.sendToInteractable(self.interactable, "cl_delayFade", 10)
+        self.network:sendToServer("sv_unseat", sm.localPlayer.getPlayer().character)
+    else
+        self.network:sendToServer("sv_unseat")
+        self:cl_resetAction()
+    end
+end
+
+
+
 function Gunship:client_onAction(action, state)
+    if action == 8 and state then
+        self.network:sendToServer("sv_takeDamage", maxHealth)
+        return true
+    end
+
     if self:cl_checkRocketInput(action, state) then
         return true
     end
 
-    if actions[action] then
+    if actions[action] and not self.cl_destroyed or destroyActions[action] then
         self.cl_actions[action] = state
         self.network:sendToServer("sv_updateAction", { action, state })
     end
 
     if state then
         if action == 15 then
-            sm.camera.setCameraState(0)
-            self.gui:close()
-            self.interactable:setSeatCharacter(sm.localPlayer.getPlayer().character)
-            self.seatedTick = nil
-
-            self.network:sendToServer("sv_resetAction")
-            self:cl_resetAction()
+            self:cl_unseat()
         elseif action == 6 then
             self.tracerEnabled = not self.tracerEnabled
         elseif action == 7 then
@@ -810,6 +886,43 @@ function Gunship:cl_updateSeatGui()
     end
 end
 
+function Gunship:cl_updateBodyHealth(health)
+    local boxColour, textColour = self:GetHealthColour(health, maxHealth)
+    self.wgui.mainHealth:setParameter("color", boxColour)
+
+    self.wgui.mainHealthText:update(max(math.ceil(health / maxHealth * 100), 0).."%")
+    self.wgui.mainHealthText:setColour(textColour or boxColour)
+end
+
+function Gunship:cl_updateThrusterHealth(data)
+    local id, health = data.id, data.health
+    local alive = health > 0
+    self.interactable:setSubMeshVisible("engine"..id, alive)
+
+    local boxColour, textColour = self:GetHealthColour(health, thrusterMaxHealth)
+    local engineId = "engine"..id.."Health"
+
+    self.wgui[engineId]:setParameter("color", boxColour)
+
+    local text3D = self.wgui[engineId.."Text"]
+    text3D:update(max(math.ceil(health / thrusterMaxHealth * 100), 0).."%")
+    text3D:setColour(textColour or boxColour)
+
+    if not alive then
+        self.wgui[engineId]:setParameter("color", black)
+
+        if self.thrusters[id] then
+            self.thrusters[id]:destroy()
+            self.thrusters[id] = nil
+        end
+
+        if self.cl_damageAreas[id] then
+            sm.areaTrigger.destroy(self.cl_damageAreas[id].trigger)
+            self.cl_damageAreas[id] = nil
+        end
+    end
+end
+
 -- local function GetItemScale(uuid)
 -- 	local scale = 1
 -- 	if uuid ~= sm.uuid.getNil() and not sm.item.isTool(uuid) then
@@ -883,7 +996,7 @@ function Gunship:cl_updateCockpitUI(dt)
     --     end
     -- end
 
-    -- if sm.game.getCurrentTick()%40 == 0 then
+    -- if sm.game.getServerTick()%40 == 0 then
     --     self.init = false
     -- end
 
@@ -1075,10 +1188,6 @@ function Gunship:cl_checkRocketInput(action, state)
     return false
 end
 
-function Gunship:sv_onRocketInput(data)
-    sm.event.sendToInteractable(data.cannon, "sv_onRocketInput", { action = data.action, state = data.state })
-end
-
 function Gunship:cl_onRocketFire()
     self.controllingRocket = true
     self.network:sendToServer("sv_onRocketFire")
@@ -1126,6 +1235,18 @@ function Gunship:cl_resetAction()
     end
 end
 
+function Gunship:cl_delayFade(delay)
+    if delay > 0 then
+        delay = delay - 1
+        sm.event.sendToInteractable(self.interactable, "cl_delayFade", delay)
+        return
+    end
+
+    sm.gui.endFadeToBlack(2)
+end
+
+
+
 function Gunship:GetCameraPosition(dt)
     -- return self.interactable:getWorldBonePosition("jnt_camera")
     -- return self.shape:getInterpolatedWorldPosition() + self.shape.velocity * (dt or (1/40)) - self.shape:getInterpolatedUp() * 10 + self.shape:getInterpolatedAt() * 2
@@ -1157,6 +1278,10 @@ function Gunship:GetRocketFireData(start, dt)
 end
 
 function Gunship:GetMoveDir()
+    if self.sv_destroyed or self.cl_destroyed then
+        return VEC3_ZERO
+    end
+
     local _actions = self.sv_actions or self.cl_actions
     local at, up, right = self.shape.at, self.shape.up, self.shape.right
     return (
@@ -1237,7 +1362,13 @@ function Gunship:GetHealthColour(health, _maxHealth)
         return white
     elseif health > _maxHealth * 0.25 then
         return yellow
+    elseif health > 0 then
+        return red
     end
 
-    return red
+    return black, red
+end
+
+function Gunship:setClientData(data, channel)
+    self.network:sendToClients("cl_onClientDataUpdate", { data, channel })
 end

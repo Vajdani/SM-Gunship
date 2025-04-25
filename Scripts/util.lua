@@ -84,6 +84,7 @@ function Line_tracer:destroy()
 end
 
 
+
 ---@class Text3D
 ---@field effects Effect[]
 ---@field text string
@@ -112,7 +113,13 @@ end
 
 ---@return boolean
 function Text3D:isPlaying()
-    return self.effects[1]:isPlaying()
+    for k, v in pairs(self.effects) do
+        if v:isPlaying() then
+            return true
+        end
+    end
+
+    return false
 end
 
 function Text3D:start()
@@ -127,8 +134,6 @@ function Text3D:start()
 end
 
 function Text3D:stop()
-    if not self:isPlaying() then return end
-
     for k, v in pairs(self.effects) do
         v:stop()
     end
@@ -161,11 +166,11 @@ function Text3D:update(text)
         end
     end
 
+    self.text = text
+
     if playing then
         self:start()
     end
-
-    self.text = text
 end
 
 function Text3D:setPosition(position)
