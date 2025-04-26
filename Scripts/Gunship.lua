@@ -369,7 +369,7 @@ function Gunship:sv_takeDamage(damage)
     end
 end
 
-function Gunship:sv_applyDeathImpulse(applyTorque)
+function Gunship:sv_applyDeathImpulse(destroyed)
     local char, cId = self.interactable:getSeatCharacter(), self.shape.body:getCreationId()
     local pos = self.shape.worldPosition
     local contacts = sm.physics.getSphereContacts(pos, kamikazeRadius)
@@ -391,18 +391,20 @@ function Gunship:sv_applyDeathImpulse(applyTorque)
         end
     end
 
-    if not minDir then
+    if not minDir and destroyed then
         minDir = (
             self.shape.at * (math.random() * 2 - 1) +
             self.shape.up * (math.random() * 2 - 1) +
             self.shape.right * (math.random() * 2 - 1)
         )
     end
-    minDir = minDir:normalize()
 
-    sm.physics.applyImpulse(self.shape, minDir * math.random(10, 20) * self.sv_mass, true)
+    if minDir then
+        minDir = minDir:normalize()
+        sm.physics.applyImpulse(self.shape, minDir * math.random(10, 20) * self.sv_mass, true)
+    end
 
-    if applyTorque then
+    if destroyed then
         sm.physics.applyTorque(self.shape.body, (self.shape.at * GetImpulseMultiplier() + self.shape.right * GetImpulseMultiplier()) * self.sv_mass, true)
     end
 end
