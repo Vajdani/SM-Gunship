@@ -155,7 +155,7 @@
 			{
 				"type": "particle",
 				"name": "p_gunship_thrustersmoke",
-				"offset": { "x": 0.0, "y": 0.0, "z": 0.625 },
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
 				"attached": true,
 				"delay": 0.0
 			}
@@ -167,6 +167,123 @@
 			// 	"attached": false,
 			// 	"delay": 0.0
 			// }
+		]
+	},
+	"Gunship - Eject": {
+		"effectList": [
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			{
+				"attached": true,
+				"type": "audio",
+				"name": "event:/char/npc/bots/utility/refinery/refinery_unpack",
+				"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+				"duration": 0.3,
+				"delay": 0.0
+			},
+			// {
+			// 	"attached": true,
+			// 	"type": "audio",
+			// 	"name": "event:/vehicle/resourcecollector_insert",
+			// 	"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+			// 	"delay": 0.35
+			// },
+			// {
+			// 	"attached": true,
+			// 	"type": "audio",
+			// 	"name": "event:/vehicle/resourcecollector_insert",
+			// 	"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+			// 	"delay": 0.4
+			// },
+			// {
+			// 	"attached": true,
+			// 	"type": "audio",
+			// 	"name": "event:/vehicle/resourcecollector_insert",
+			// 	"offset": { "x": 0.0, "y": 0.0, "z": 0 },
+			// 	"delay": 0.45
+			// },
+			{
+				"attached": true,
+				"delay": 0.5,
+				"name": "event:/props/installations/elevator/elevator_ding",
+				"type": "audio"
+			},
+			{
+				"attached": true,
+				"delay": 0.5,
+				"name": "event:/props/installations/elevator/elevator_button",
+				"type": "audio"
+			}
 		]
 	}
 }

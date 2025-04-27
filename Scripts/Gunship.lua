@@ -985,7 +985,7 @@ function Gunship:cl_updateThrusterHealth(data)
         if health <= thrusterMaxHealth * 0.5 and not self.thrusters[id].effects.smoke then
             local smoke = sm.effect.createEffect("Gunship - ThrusterSmoke", self.interactable, "jnt_engine"..id)
             local rot = angleAxis((id == 1 or id == 3) and -math.rad(30) or math.rad(30), VEC3_UP)
-            smoke:setOffsetPosition(rot * VEC3_UP * -0.1)
+            smoke:setOffsetPosition(rot * VEC3_UP * 0.35)
             smoke:setOffsetRotation(rot)
             smoke:start()
 
@@ -1366,6 +1366,10 @@ end
 
 function Gunship:cl_delayEjection(delay)
     if delay > 0 then
+        if delay == ejectionDelay then
+            sm.effect.playHostedEffect("Gunship - Eject", self.interactable, nil, { offsetPosition = VEC3_UP * 4 + VEC3_FORWARD * 0.25 })
+        end
+
         delay = delay - 1
         sm.event.sendToInteractable(self.interactable, "cl_delayEjection", delay)
         return
