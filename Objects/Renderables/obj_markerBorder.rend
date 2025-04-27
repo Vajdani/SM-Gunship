@@ -1,0 +1,15 @@
+{
+   "lodList": [
+      {
+         "mesh": "$GAME_DATA/Objects/Mesh/industrial/obj_industrial_platformfenceconnector.fbx",
+         "subMeshList": [
+            {
+               "textureList": [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ],
+               "material": "ConnectJoint"
+            }
+         ]
+      }
+   ]
+}

@@ -1,3 +1,6 @@
+---@type Interactable[]
+g_gunships = g_gunships or {}
+
 ---@class DamageArea
 ---@field health? number
 ---@field trigger AreaTrigger
@@ -67,6 +70,9 @@ local deathFadeDelay = 3 * 40
 local kamikazeRadius = 50
 local engineScale = vec3(0.75, 1.5, 2.065) * 0.5
 local engineOffset = 0.275
+local scanTicks = 5 * 40
+local maxRadarRange = 100^2
+local maxRadarAngle = 0.707107
 
 local function GetImpulseMultiplier()
     return math.random(10, 30) * (math.random() > 0.5 and 1 or -1)
@@ -508,7 +514,7 @@ function Gunship:client_onCreate()
     end
 
     local aimPoint = sm.effect.createEffect("ShapeRenderable")
-    aimPoint:setParameter("uuid", obj_uishape)
+    aimPoint:setParameter("uuid", obj_marker)
     aimPoint:setParameter("color", green)
     aimPoint:setScale(vec3(0.25, 0.25, 0.25))
     self.aimPoint = aimPoint
@@ -550,7 +556,7 @@ function Gunship:client_onCreate()
     -- end
 
     local mainHealth = sm.effect.createEffect("ShapeRenderable")
-    mainHealth:setParameter("uuid", obj_uishape)
+    mainHealth:setParameter("uuid", obj_marker)
     self.wgui.mainHealth = mainHealth
 
     self.wgui.mainHealthText = Text3D():init(4, 3)
@@ -558,7 +564,7 @@ function Gunship:client_onCreate()
 
     for i = 1, 4 do
         local bar = sm.effect.createEffect("ShapeRenderable")
-        bar:setParameter("uuid", obj_uishape)
+        bar:setParameter("uuid", obj_marker)
         self.wgui["engine"..i.."Health"] = bar
 
         local text3D = Text3D():init(4, i % 2 == 0 and 2 or 1)
@@ -573,9 +579,28 @@ function Gunship:client_onCreate()
 
     for i = 1, 10 do
         local bar = sm.effect.createEffect("ShapeRenderable")
-        bar:setParameter("uuid", obj_uishape)
+        bar:setParameter("uuid", obj_marker)
         self.wgui["bar" .. i] = bar
     end
+
+    self.wgui.targetMarkers = {
+        effects = {},
+        start = function(_self)
+            for k, v in pairs(_self.effects) do
+                v:start()
+            end
+        end,
+        stop = function(_self)
+            for k, v in pairs(_self.effects) do
+                v:stop()
+            end
+        end,
+        destroy = function(_self)
+            for k, v in pairs(_self.effects) do
+                v:destroy()
+            end
+        end
+    }
 
     self.gui = sm.gui.createSeatGui()
 
@@ -613,6 +638,11 @@ function Gunship:client_onCreate()
     self.cl_forceStatic = false
 
     self.cl_tpOverride = false
+
+    self.gunshipId = self.interactable.id
+    g_gunships[self.gunshipId] = self.interactable
+
+    self.cl_markedEnemies = {}
 end
 
 function Gunship:client_onDestroy()
@@ -653,6 +683,8 @@ function Gunship:client_onDestroy()
         sm.gui.startFadeToBlack(0.1, deathFadeDelay)
         sm.event.sendToTool(g_gameHook, "cl_delayFade", deathFadeDelay)
     end
+
+    g_gunships[self.gunshipId] = nil
 end
 
 function Gunship:cl_onClientDataUpdate(args)
@@ -801,6 +833,26 @@ function Gunship:client_onFixedUpdate(dt)
             self.seatedTick = nil
             sm.camera.setCameraState(0)
             self.gui:close()
+        end
+
+        if tick % scanTicks == 0 then
+            self.cl_markedEnemies = {}
+
+            local colour = self.shape.color
+            local pos = self.shape.worldPosition
+            local lookDir = self.shape.up
+            for k, v in pairs(g_gunships) do
+                local shape = v.shape
+                if shape.color ~= colour then
+                    local toEnemy = (shape.worldPosition - pos)
+                    if toEnemy:length2() < maxRadarRange and lookDir:dot(toEnemy:normalize()) > maxRadarAngle then
+                        local hit, result = sm.physics.raycast(pos, shape.worldPosition, self.shape)
+                        if hit and result:getShape() == shape then
+                            self.cl_markedEnemies[shape.id] = shape
+                        end
+                    end
+                end
+            end
         end
     end
 end
@@ -1090,7 +1142,7 @@ function Gunship:cl_updateCockpitUI(dt)
     --         if not hotbarItem then
     --             hotbarItem = {}
     --             local itembg = sm.effect.createEffect( "ShapeRenderable" )
-    --             itembg:setParameter("uuid", blk_plastic) --obj_uishape)
+    --             itembg:setParameter("uuid", blk_plastic) --obj_marker)
     --             itembg:setParameter("color", black)
     --             itembg:setScale(vec3(0.025, 0.025, 0))
 
@@ -1239,6 +1291,34 @@ function Gunship:cl_updateCockpitUI(dt)
         self.wgui.ejectionText:setRotation(shapeRot)
         self.wgui.ejectionText:setScale(VEC3_ONE * 0.03)
         self.wgui.ejectionText:render()
+    else
+        for k, v in pairs(self.wgui.targetMarkers.effects) do
+            if not sm.exists(self.cl_markedEnemies[k]) then
+                self.cl_markedEnemies[k] = nil
+            end
+
+            if not self.cl_markedEnemies[k] then
+                v:destroy()
+                self.wgui.targetMarkers.effects[k] = nil
+            end
+        end
+
+        for k, v in pairs(self.cl_markedEnemies) do
+            if not self.wgui.targetMarkers.effects[k] then
+                local marker = sm.effect.createEffect("ShapeRenderable")
+                marker:setParameter("uuid", obj_markerBorder)
+                marker:setParameter("color", red)
+                marker:setScale(vec3(2, 0, 2))
+                marker:start()
+
+                self.wgui.targetMarkers.effects[k] = marker
+            end
+
+            local marker = self.wgui.targetMarkers.effects[k]
+            local dir = (v.worldPosition - base):normalize()
+            marker:setPosition(v.worldPosition)
+            marker:setRotation(getRotation(VEC3_FORWARD, dir))
+        end
     end
 end
 

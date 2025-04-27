@@ -53,7 +53,8 @@ RAD90 = math.pi * 0.5
 DIVRAD90 = 1 / RAD90
 
 
-obj_uishape = uuid("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6")
+obj_marker = uuid("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6")
+obj_markerBorder = uuid("37e13ac0-76f7-438c-b7fe-2149ffa19eb5")
 
 
 Line_tracer = class()
@@ -111,7 +112,7 @@ function Text3D:init(length, align)
     self.effects = {}
     for i = 1, length do
         local effect = sm.effect.createEffect("ShapeRenderable")
-        effect:setParameter("uuid", obj_uishape)
+        effect:setParameter("uuid", obj_marker)
 
         self.effects[i] = effect
     end

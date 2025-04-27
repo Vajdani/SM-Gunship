@@ -91,11 +91,27 @@
             "flammable": false,
             "name": "obj_marker",
             "physicsMaterial": "Metal",
-            "renderable": "$CONTENT_DATA/Objects/Renderables/UIShape.rend",
+            "renderable": "$CONTENT_DATA/Objects/Renderables/obj_marker.rend",
             "rotationSet": "PropY",
             "showInInventory": false,
             "sticky": "+Y-Y",
             "uuid": "7030b7b1-f0a1-4b24-bd0d-11d0a42185e6"
+        },
+        {
+            "box": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "color": "ffffff",
+            "flammable": false,
+            "name": "obj_markerBorder",
+            "physicsMaterial": "Metal",
+            "renderable": "$CONTENT_DATA/Objects/Renderables/obj_markerBorder.rend",
+            "rotationSet": "PropY",
+            "showInInventory": false,
+            "sticky": "+Y-Y",
+            "uuid": "37e13ac0-76f7-438c-b7fe-2149ffa19eb5"
         }
     ]
 }
