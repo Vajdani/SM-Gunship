@@ -460,7 +460,7 @@ function Gunship:sv_unseat(char)
     char:setWorldPosition(pos)
 
     if self.sv_destroyed then
-        sm.physics.applyImpulse(char, self.shape.at * char.mass * 50)
+        sm.physics.applyImpulse(char, (self.shape.at * 50 + self.shape.velocity) * char.mass)
 
         sm.effect.playEffect("Vacuumpipe - Blowout", pos, nil, self.shape.worldRotation)
     else
@@ -1348,10 +1348,6 @@ function Gunship:cl_updateTurret(seatedChar, dt)
         local pos = self:GetCameraPosition(dt)
         local hit, result = sm.physics.raycast(pos, pos + dir * aimAssistRange, self.shape)
         if hit then
-            -- local low, high = sm.projectile.solveBallisticArc(self:GetTurretFirePos(), result.pointWorld, autocannonVelocity, 10)
-            -- if low and low:length2() > FLT_EPSILON then
-            --     dir = low:normalize()
-            -- end
             dir = (result.pointWorld - self:GetTurretFirePos()):normalize()
         end
 
