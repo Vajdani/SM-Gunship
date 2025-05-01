@@ -1,15 +1,24 @@
+---@diagnostic disable:lowercase-global
+
 if not g_font then
     g_font = Font():init()
 end
 
 vec3 = sm.vec3.new
+quat = sm.quat.new
 uuid = sm.uuid.new
 colour = sm.color.new
 getRotation = sm.vec3.getRotation
 getGravity = sm.physics.getGravity
 angleAxis = sm.quat.angleAxis
+axesToQuat = sm.util.axesToQuat
 clamp = sm.util.clamp
 lerp = sm.util.lerp
+isServer = sm.isServerMode
+random = math.random
+serverTick = sm.game.getServerTick
+applyImpulse = sm.physics.applyImpulse
+applyTorque = sm.physics.applyTorque
 
 function CalculateRightVector(vector)
     local yaw = math.atan2(vector.y, vector.x) - math.pi / 2
@@ -26,7 +35,7 @@ end
 
 function quat_normalise(a)
     local l = 1.0 / math.sqrt(quat_dot(a, a));
-    return sm.quat.new(l * a.x, l * a.y, l * a.z, l * a.w);
+    return quat(l * a.x, l * a.y, l * a.z, l * a.w);
 end
 
 oldQuatSLerp = oldQuatSLerp or sm.quat.slerp

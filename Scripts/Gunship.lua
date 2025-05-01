@@ -75,7 +75,7 @@ local maxRadarRange = 100^2
 local maxRadarAngle = 0.707107
 
 local function GetImpulseMultiplier()
-    return math.random(10, 30) * (math.random() > 0.5 and 1 or -1)
+    return random(10, 30) * (random() > 0.5 and 1 or -1)
 end
 
 local green = colour(0, 1, 0)
@@ -225,7 +225,7 @@ function Gunship:server_onFixedUpdate(dt)
 
     local shape, body = self.shape, self.shape.body
     local velocity = shape.velocity
-    if body:hasChanged(sm.game.getServerTick() - 1) then
+    if body:hasChanged(serverTick() - 1) then
         self.sv_mass = self:GetBodyMass()
     end
 
@@ -239,7 +239,7 @@ end
 
 function Gunship:UpdateDamageAreas()
     local missingEngines = 0
-    local damageAreas = self.sv_damageAreas or self.cl_damageAreas
+    local damageAreas = isServer() and self.sv_damageAreas or self.cl_damageAreas
     for i = 1, 4 do
         local area = damageAreas[i]
         if area then
@@ -255,7 +255,7 @@ function Gunship:UpdateDamageAreas()
                 trigger:setWorldPosition(enginePos + worldRight * engineOffset)
             end
 
-            trigger:setWorldRotation(quat_normalise(sm.util.axesToQuat(worldRight, worldUp)))
+            trigger:setWorldRotation(quat_normalise(axesToQuat(worldRight, worldUp)))
         else
             missingEngines = missingEngines + 1
         end
@@ -272,7 +272,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
     local mass = self.sv_mass or self.cl_mass
 
     local direction = char.direction
-    local force = vec3(0, 0, (pcall(sm.localPlayer.getId) and 10 or getGravity()) + 0.45) + self:GetMoveDir() * (_actions[16] and boostSpeed or moveSpeed) - velocity * 0.5
+    local force = vec3(0, 0, (isServer() and 10 or getGravity()) + 0.45) + self:GetMoveDir() * (_actions[16] and boostSpeed or moveSpeed) - velocity * 0.5
     local offset = VEC3_ZERO
     local forceMultiplier = (4 - missingEngines) / 4
     if missingEngines > 0 then
@@ -284,7 +284,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
 
         offset = offset / (4 - missingEngines)
     end
-    sm.physics.applyImpulse(self.shape, force * forceMultiplier * dt * mass, true, offset)
+    applyImpulse(self.shape, force * forceMultiplier * dt * mass, true, offset)
 
     local torque =
         -body.angularVelocity * 0.3 -
@@ -302,7 +302,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
 
         torque = torque + shape.up:cross(direction) + steer
     end
-    sm.physics.applyTorque(body, torque * mass * forceMultiplier, true)
+    applyTorque(body, torque * mass * forceMultiplier, true)
 end
 
 function Gunship:sv_handleAutocannon(velocity, char, dt)
@@ -399,19 +399,19 @@ function Gunship:sv_applyDeathImpulse(destroyed)
 
     if not minDir and destroyed then
         minDir = (
-            self.shape.at * (math.random() * 2 - 1) +
-            self.shape.up * (math.random() * 2 - 1) +
-            self.shape.right * (math.random() * 2 - 1)
+            self.shape.at * (random() * 2 - 1) +
+            self.shape.up * (random() * 2 - 1) +
+            self.shape.right * (random() * 2 - 1)
         )
     end
 
     if minDir then
         minDir = minDir:normalize()
-        sm.physics.applyImpulse(self.shape, minDir * math.random(10, 20) * self.sv_mass, true)
+        applyImpulse(self.shape, minDir * random(10, 20) * self.sv_mass, true)
     end
 
     if destroyed then
-        sm.physics.applyTorque(self.shape.body, (self.shape.at * GetImpulseMultiplier() + self.shape.right * GetImpulseMultiplier()) * self.sv_mass, true)
+        applyTorque(self.shape.body, (self.shape.at * GetImpulseMultiplier() + self.shape.right * GetImpulseMultiplier()) * self.sv_mass, true)
     end
 end
 
@@ -460,7 +460,7 @@ function Gunship:sv_unseat(char)
     char:setWorldPosition(pos)
 
     if self.sv_destroyed then
-        sm.physics.applyImpulse(char, (self.shape.at * 50 + self.shape.velocity) * char.mass)
+        applyImpulse(char, (self.shape.at * 50 + self.shape.velocity) * char.mass)
 
         sm.effect.playEffect("Vacuumpipe - Blowout", pos, nil, self.shape.worldRotation)
     else
@@ -807,7 +807,7 @@ function Gunship:client_onFixedUpdate(dt)
         self.network:sendToServer("sv_onRocketExplode")
     end
 
-    local tick = sm.game.getServerTick()
+    local tick = serverTick()
     if self.shape.body:hasChanged(tick - 1) then
         self.cl_mass = self:GetBodyMass()
     end
@@ -878,7 +878,7 @@ function Gunship:cl_seat()
     sm.camera.setCameraState(2)
     self.gui:open()
     self.interactable:setSeatCharacter(sm.localPlayer.getPlayer().character)
-    self.seatedTick = sm.game.getServerTick()
+    self.seatedTick = serverTick()
 end
 
 function Gunship:cl_unseat()
@@ -1186,7 +1186,7 @@ function Gunship:cl_updateCockpitUI(dt)
     --     end
     -- end
 
-    -- if sm.game.getServerTick()%40 == 0 then
+    -- if serverTick()%40 == 0 then
     --     self.init = false
     -- end
 
