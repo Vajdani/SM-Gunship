@@ -4,6 +4,7 @@ g_gunships = g_gunships or {}
 ---@class DamageArea
 ---@field health? number
 ---@field trigger AreaTrigger
+---@field pesticideDamageTimer? number
 
 ---@class Gunship : ShapeClass
 ---@field sv_damageAreas DamageArea[]
@@ -73,6 +74,8 @@ local engineOffset = 0.275
 local scanTicks = 5 * 40
 local maxRadarRange = 100^2
 local maxRadarAngle = 0.707107
+local pesticideDamageTime = 1
+local pesticideDamage = 10
 
 local function GetImpulseMultiplier()
     return random(10, 30) * (random() > 0.5 and 1 or -1)
@@ -115,6 +118,7 @@ function Gunship:server_onCreate()
 
         self.sv_damageAreas[i] = {
             health = thrusterMaxHealth,
+            pesticideDamageTimer = 0,
             trigger = trigger
         }
     end
@@ -199,6 +203,8 @@ function Gunship:server_onCollision(other, position, selfPointVelocity, otherPoi
 end
 
 function Gunship:server_onFixedUpdate(dt)
+    if not self.sv_actions then return end
+
     if self.sv_destructionTimer then
         self.sv_destructionTimer = self.sv_destructionTimer - 1
         if self.sv_destructionTimer <= 0 then
@@ -239,7 +245,8 @@ end
 
 function Gunship:UpdateDamageAreas()
     local missingEngines = 0
-    local damageAreas = isServer() and self.sv_damageAreas or self.cl_damageAreas
+    local servermode = isServer()
+    local damageAreas = servermode and self.sv_damageAreas or self.cl_damageAreas
     for i = 1, 4 do
         local area = damageAreas[i]
         if area then
@@ -248,14 +255,38 @@ function Gunship:UpdateDamageAreas()
             local enginePos = self.interactable:getWorldBonePosition(name)
             local worldUp = self:TransformLocalDirection(engineDir)
             local worldRight = self:TransformLocalDirection(CalculateRightVector(engineDir))
-            local trigger = area.trigger
-            if i == 1 or i == 3 then
-                trigger:setWorldPosition(enginePos - worldRight * engineOffset)
-            else
-                trigger:setWorldPosition(enginePos + worldRight * engineOffset)
+
+            if servermode then
+                area.pesticideDamageTimer = max(area.pesticideDamageTimer - 0.025, 0)
             end
 
-            trigger:setWorldRotation(quat_normalise(axesToQuat(worldRight, worldUp)))
+            local trigger = area.trigger
+            local contents = trigger:getContents()
+            for k, v in pairs(contents) do
+                if sm.exists(v) and type(v) == "AreaTrigger" then
+                    local userData = v:getUserData()
+                    if userData then
+                        if servermode and userData.pesticideId and area.pesticideDamageTimer <= 0 then
+                            area.pesticideDamageTimer = pesticideDamageTime
+                            self:sv_onDamageAreaHit(trigger, enginePos, nil, VEC3_ZERO, nil, nil, pesticideDamage, nil, nil, sm.uuid.getNil())
+                        end
+
+                        if (userData.water or userData.oil or userData.chemical) then
+                            missingEngines = missingEngines + 1
+                        end
+                    end
+                end
+            end
+
+            if sm.exists(trigger) then
+                if i == 1 or i == 3 then
+                    trigger:setWorldPosition(enginePos - worldRight * engineOffset)
+                else
+                    trigger:setWorldPosition(enginePos + worldRight * engineOffset)
+                end
+
+                trigger:setWorldRotation(quat_normalise(axesToQuat(worldRight, worldUp)))
+            end
         else
             missingEngines = missingEngines + 1
         end
@@ -813,9 +844,12 @@ function Gunship:client_onFixedUpdate(dt)
     end
 
     local seatedChar = self.interactable:getSeatCharacter()
-    local missingEngines = self:UpdateDamageAreas()
-    if seatedChar and not sm.isHost and missingEngines < 4 then
-        self:ApplyPhysics(seatedChar, self.shape, self.shape.body, self.shape.velocity, missingEngines, dt)
+    if seatedChar and not sm.isHost then
+        --add engine flooding indicator on hud
+        local missingEngines = self:UpdateDamageAreas()
+        if missingEngines < 4 then
+            self:ApplyPhysics(seatedChar, self.shape, self.shape.body, self.shape.velocity, missingEngines, dt)
+        end
     end
 
     if self.seatedTick then
@@ -1490,6 +1524,7 @@ function Gunship:cl_stopUI()
         v:stop()
     end
 end
+
 
 
 function Gunship:GetCameraPosition(dt)
