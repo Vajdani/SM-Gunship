@@ -147,6 +147,20 @@ function Gunship:server_onExplosion(center, destructionLevel)
     self:sv_takeDamage(destructionLevel * 10)
 end
 
+---@param args { level: number, position:Vec3, radius:number }
+function Gunship:sv_e_onExplode(args)
+    local damage, position, radius = args.level * 10, args.position, args.radius
+    for k, v in pairs(self.sv_damageAreas) do
+        local trigger = v.trigger
+        local dir = trigger:getWorldPosition() - position
+        if dir:length() <= radius then
+            self:sv_onDamageAreaHit(trigger, trigger:getWorldPosition(), nil, -dir:normalize(), nil, nil, damage, nil, nil, sm.uuid.getNil())
+        end
+    end
+
+    self:sv_takeDamage(damage)
+end
+
 function Gunship:sv_e_onHit(args)
     local pos = args.position - args.normal * 0.15
     local x, y, z = pos.x, pos.y, pos.z
@@ -194,7 +208,7 @@ function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
 end
 
 function Gunship:server_onCollision(other, position, selfPointVelocity, otherPointVelocity, normal)
-    if isAnyOf(other, self.shape.body:getCreationBodies()) then return end
+    if isAnyOf(other, self.shape.body:getCreationBodies()) or type(other) == "Character" and other:isPlayer() then return end
 
     local damage = (selfPointVelocity + otherPointVelocity):length()
     if damage >= 20 then
@@ -266,7 +280,7 @@ function Gunship:UpdateDamageAreas()
                 if sm.exists(v) and type(v) == "AreaTrigger" then
                     local userData = v:getUserData()
                     if userData then
-                        if servermode and userData.pesticideId and area.pesticideDamageTimer <= 0 then
+                        if servermode and (userData.pesticideId or userData.chemical) and area.pesticideDamageTimer <= 0 then
                             area.pesticideDamageTimer = pesticideDamageTime
                             self:sv_onDamageAreaHit(trigger, enginePos, nil, VEC3_ZERO, nil, nil, pesticideDamage, nil, nil, sm.uuid.getNil())
                         end
@@ -495,6 +509,8 @@ function Gunship:sv_unseat(char)
 
         sm.effect.playEffect("Vacuumpipe - Blowout", pos, nil, self.shape.worldRotation)
     else
+        applyImpulse(char, self.shape.velocity * char.mass)
+
         self:sv_resetAction()
     end
 end
@@ -503,7 +519,7 @@ function Gunship:sv_selfDestruct(char)
     self.sv_destroyed = true
     self.sv_destructionTimer = destructionTime
     self:sv_unseat(char)
-    self:sv_applyDeathImpulse(false)
+    -- self:sv_applyDeathImpulse(false)
     self:setClientData(true, 5)
 end
 
@@ -844,10 +860,10 @@ function Gunship:client_onFixedUpdate(dt)
     end
 
     local seatedChar = self.interactable:getSeatCharacter()
-    if seatedChar and not sm.isHost then
+    if seatedChar then
         --add engine flooding indicator on hud
         local missingEngines = self:UpdateDamageAreas()
-        if missingEngines < 4 then
+        if not sm.isHost and missingEngines < 4 then
             self:ApplyPhysics(seatedChar, self.shape, self.shape.body, self.shape.velocity, missingEngines, dt)
         end
     end
@@ -864,9 +880,14 @@ function Gunship:client_onFixedUpdate(dt)
         end
 
         if tick - self.seatedTick > 10 and not seatedChar then
-            self.seatedTick = nil
-            sm.camera.setCameraState(0)
             self.gui:close()
+            self:cl_stopUI()
+
+            sm.camera.setCameraState(0)
+            self.seatedTick = nil
+
+            self.network:sendToServer("sv_unseat", sm.localPlayer.getPlayer().character)
+            self:cl_resetAction()
         end
 
         if tick % scanTicks == 0 then
@@ -969,9 +990,9 @@ function Gunship:client_onAction(action, state)
 
     if action >= 8 and action <= 14 then
         if state then
-            self.interactable:pressSeatInteractable(action - 8)
+            self.interactable:pressSeatInteractable(action - 9)
         else
-            self.interactable:releaseSeatInteractable(action - 8)
+            self.interactable:releaseSeatInteractable(action - 9)
         end
     end
 
