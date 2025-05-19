@@ -1,0 +1,15 @@
+{
+   "lodList": [
+      {
+         "mesh": "$CONTENT_DATA/Objects/Mesh/obj_marker_circle.fbx",
+         "subMeshList": [
+            {
+               "textureList": [
+                  "$GAME_DATA/Textures/transparent.tga"
+               ],
+               "material": "ConnectJoint"
+            }
+         ]
+      }
+   ]
+}

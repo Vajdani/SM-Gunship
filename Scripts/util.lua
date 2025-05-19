@@ -59,12 +59,16 @@ VEC3_UP = vec3(0, 0, 1)
 VEC3_ZERO = sm.vec3.zero()
 VEC3_ONE = sm.vec3.one()
 RAD90 = math.pi * 0.5
+RAD75 = math.rad(75)
+RAD45 = math.pi * 0.25
+RAD30 = math.pi / 6
 DIVRAD90 = 1 / RAD90
 
 
 obj_marker = uuid("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6")
-obj_markerBorder = uuid("37e13ac0-76f7-438c-b7fe-2149ffa19eb5")
-
+obj_marker_border = uuid("37e13ac0-76f7-438c-b7fe-2149ffa19eb5")
+obj_marker_dot = uuid("9162cf1b-b7c9-44d4-a1fb-092b4819fce0")
+obj_marker_circle = uuid("eff6f314-1202-4f93-aeae-4a577a142ba3")
 
 Line_tracer = class()
 function Line_tracer:init(thickness, colour)

@@ -105,13 +105,45 @@
             },
             "color": "ffffff",
             "flammable": false,
-            "name": "obj_markerBorder",
+            "name": "obj_marker_border",
             "physicsMaterial": "Metal",
-            "renderable": "$CONTENT_DATA/Objects/Renderables/obj_markerBorder.rend",
+            "renderable": "$CONTENT_DATA/Objects/Renderables/obj_marker_border.rend",
             "rotationSet": "PropY",
             "showInInventory": false,
             "sticky": "+Y-Y",
             "uuid": "37e13ac0-76f7-438c-b7fe-2149ffa19eb5"
+        },
+        {
+            "box": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "color": "ffffff",
+            "flammable": false,
+            "name": "obj_marker_dot",
+            "physicsMaterial": "Metal",
+            "renderable": "$CONTENT_DATA/Objects/Renderables/obj_marker_dot.rend",
+            "rotationSet": "PropY",
+            "showInInventory": false,
+            "sticky": "+Y-Y",
+            "uuid": "9162cf1b-b7c9-44d4-a1fb-092b4819fce0"
+        },
+        {
+            "box": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "color": "ffffff",
+            "flammable": false,
+            "name": "obj_marker_circle",
+            "physicsMaterial": "Metal",
+            "renderable": "$CONTENT_DATA/Objects/Renderables/obj_marker_circle.rend",
+            "rotationSet": "PropY",
+            "showInInventory": false,
+            "sticky": "+Y-Y",
+            "uuid": "eff6f314-1202-4f93-aeae-4a577a142ba3"
         }
     ]
 }

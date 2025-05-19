@@ -198,7 +198,7 @@ function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
     self:sv_takeDamage(finalDamage * 0.5)
     self:setClientData({ id = id, health = area.health }, 2)
 
-    if area.health <= 0 then
+    if sm.exists(trigger) and area.health <= 0 then
         sm.effect.playEffect("PropaneTank - ExplosionSmall", trigger:getWorldPosition())
         sm.areaTrigger.destroy(trigger)
         self.sv_damageAreas[id] = nil
@@ -538,7 +538,7 @@ function Gunship:client_onCreate()
     self.thrusters = {}
     for i = 1, 4 do
         local thruster = sm.effect.createEffect("Thruster - Level 5", self.interactable, "jnt_engine" .. i .. "_effect")
-        thruster:setOffsetRotation(angleAxis(math.rad(90), VEC3_RIGHT))
+        thruster:setOffsetRotation(angleAxis(RAD90, VEC3_RIGHT))
         table.insert(self.thrusters, {
             effects = { thrust = thruster },
             start = function(_self)
@@ -630,22 +630,32 @@ function Gunship:client_onCreate()
         self.wgui["bar" .. i] = bar
     end
 
+    local border = sm.effect.createEffect("ShapeRenderable")
+    border:setParameter("uuid", obj_marker_circle)
+
     self.wgui.targetMarkers = {
+        uiBorder = border,
         effects = {},
         start = function(_self)
             for k, v in pairs(_self.effects) do
                 v:start()
             end
+
+            _self.uiBorder:start()
         end,
         stop = function(_self)
             for k, v in pairs(_self.effects) do
                 v:stop()
             end
+
+            _self.uiBorder:stop()
         end,
         destroy = function(_self)
             for k, v in pairs(_self.effects) do
                 v:destroy()
             end
+
+            _self.uiBorder:destroy()
         end
     }
 
@@ -770,11 +780,12 @@ function Gunship:cl_onClientDataUpdate(args)
 end
 
 function Gunship:client_onUpdate(dt)
+    local seatedChar = self.interactable:getSeatCharacter()
+
     self.cockpit:setParameter("color", self.shape.color)
     self:SetBodyVisibility(not self.seatedTick or self.controllingRocket or self.cl_ejecting)
-    self:cl_updateThrusters(dt)
+    self:cl_updateThrusters(seatedChar, dt)
 
-    local seatedChar = self.interactable:getSeatCharacter()
     if seatedChar and not self.cl_destroyed then
         if not self.engine:isPlaying() then
             for k, v in pairs(self.thrusters) do
@@ -1091,7 +1102,7 @@ function Gunship:cl_updateThrusterHealth(data)
     if alive then
         if health <= thrusterMaxHealth * 0.5 and not self.thrusters[id].effects.smoke then
             local smoke = sm.effect.createEffect("Gunship - ThrusterSmoke", self.interactable, "jnt_engine"..id)
-            local rot = angleAxis((id == 1 or id == 3) and -math.rad(30) or math.rad(30), VEC3_UP)
+            local rot = angleAxis((id == 1 or id == 3) and -RAD30 or RAD30, VEC3_UP)
             smoke:setOffsetPosition(rot * VEC3_UP * 0.35)
             smoke:setOffsetRotation(rot)
             smoke:start()
@@ -1105,7 +1116,7 @@ function Gunship:cl_updateThrusterHealth(data)
             self.thrusters[id]:destroy()
 
             local fire = sm.effect.createEffect("Fire -medium01", self.interactable, "jnt_engine"..id)
-            local rot = angleAxis((id == 1 or id == 3) and math.rad(75) or -math.rad(75), VEC3_FORWARD)
+            local rot = angleAxis((id == 1 or id == 3) and RAD75 or -RAD75, VEC3_FORWARD)
             fire:setOffsetPosition(rot * VEC3_UP * -0.1)
             fire:setOffsetRotation(rot)
             fire:start()
@@ -1182,12 +1193,14 @@ end
 -- 	return scale
 -- end
 
+local markerDotScale = vec3(0.01, 0.01, 1)
 function Gunship:cl_updateCockpitUI(dt)
     local shapePos, shapeRot, up, at, right = self:GetAccurateTransform(dt)
 
     self.cockpit:setPosition(shapePos)
     self.cockpit:setRotation(shapeRot)
 
+    local wgui = self.wgui
     -- local children = self.interactable:getChildren()
     -- local hotbarWidth = (#children - 1) * 0.03 * 0.5
     -- for i = 1, self.maxChildCount do
@@ -1249,144 +1262,189 @@ function Gunship:cl_updateCockpitUI(dt)
     local barScale = vec3(0.03, 0.0025, 0)
     local verticalScale, horizontalScale = 0.09 - barScale.y * 0.5, 0.11 - barScale.x * 0.5
     local verticalOffset, horizontalOffset = at * verticalScale, right * horizontalScale
-    self.wgui.bar1:setPosition(base + verticalOffset + horizontalOffset)
-    self.wgui.bar1:setRotation(shapeRot)
-    self.wgui.bar1:setScale(barScale)
+    wgui.bar1:setPosition(base + verticalOffset + horizontalOffset)
+    wgui.bar1:setRotation(shapeRot)
+    wgui.bar1:setScale(barScale)
 
-    self.wgui.bar2:setPosition(base + verticalOffset - horizontalOffset)
-    self.wgui.bar2:setRotation(shapeRot)
-    self.wgui.bar2:setScale(barScale)
+    wgui.bar2:setPosition(base + verticalOffset - horizontalOffset)
+    wgui.bar2:setRotation(shapeRot)
+    wgui.bar2:setScale(barScale)
 
-    self.wgui.bar3:setPosition(base - verticalOffset + horizontalOffset)
-    self.wgui.bar3:setRotation(shapeRot)
-    self.wgui.bar3:setScale(barScale)
+    wgui.bar3:setPosition(base - verticalOffset + horizontalOffset)
+    wgui.bar3:setRotation(shapeRot)
+    wgui.bar3:setScale(barScale)
 
-    self.wgui.bar4:setPosition(base - verticalOffset - horizontalOffset)
-    self.wgui.bar4:setRotation(shapeRot)
-    self.wgui.bar4:setScale(barScale)
+    wgui.bar4:setPosition(base - verticalOffset - horizontalOffset)
+    wgui.bar4:setRotation(shapeRot)
+    wgui.bar4:setScale(barScale)
 
     local angle = math.asin(up.z) * DIVRAD90
     local degreeOffset = verticalOffset * (angle == angle and angle or 0)
-    self.wgui.bar5:setPosition(base - horizontalOffset + degreeOffset)
-    self.wgui.bar5:setRotation(shapeRot)
-    self.wgui.bar5:setScale(barScale)
+    wgui.bar5:setPosition(base - horizontalOffset + degreeOffset)
+    wgui.bar5:setRotation(shapeRot)
+    wgui.bar5:setScale(barScale)
 
-    self.wgui.bar6:setPosition(base + horizontalOffset + degreeOffset)
-    self.wgui.bar6:setRotation(shapeRot)
-    self.wgui.bar6:setScale(barScale)
+    wgui.bar6:setPosition(base + horizontalOffset + degreeOffset)
+    wgui.bar6:setRotation(shapeRot)
+    wgui.bar6:setScale(barScale)
 
-    self.wgui.bar7:setPosition(base)
-    self.wgui.bar7:setRotation(shapeRot)
-    self.wgui.bar7:setScale(barScale)
+    wgui.bar7:setPosition(base)
+    wgui.bar7:setRotation(shapeRot)
+    wgui.bar7:setScale(barScale)
 
-    self.wgui.bar8:setPosition(base)
-    self.wgui.bar8:setRotation(shapeRot)
-    self.wgui.bar8:setScale(vec3(barScale.y, barScale.x, 0))
+    wgui.bar8:setPosition(base)
+    wgui.bar8:setRotation(shapeRot)
+    wgui.bar8:setScale(vec3(barScale.y, barScale.x, 0))
 
     local sidebarOffset, sideBarScale = horizontalOffset + right * (barScale.x - barScale.y) * 0.5, vec3(barScale.y, verticalScale * 2, 0)
-    self.wgui.bar9:setPosition(base - sidebarOffset)
-    self.wgui.bar9:setRotation(shapeRot)
-    self.wgui.bar9:setScale(sideBarScale)
+    wgui.bar9:setPosition(base - sidebarOffset)
+    wgui.bar9:setRotation(shapeRot)
+    wgui.bar9:setScale(sideBarScale)
 
-    self.wgui.bar10:setPosition(base + sidebarOffset)
-    self.wgui.bar10:setRotation(shapeRot)
-    self.wgui.bar10:setScale(sideBarScale)
+    wgui.bar10:setPosition(base + sidebarOffset)
+    wgui.bar10:setRotation(shapeRot)
+    wgui.bar10:setScale(sideBarScale)
 
     local healthCenter = base + right * 0.32
-    local healthRotation = shapeRot * angleAxis(math.rad(45), VEC3_FORWARD)
-    self.wgui.mainHealth:setPosition(healthCenter)
-    self.wgui.mainHealth:setRotation(healthRotation)
-    self.wgui.mainHealth:setScale(vec3(0.2, 0.75, 0) * 0.1)
+    local healthRotation = shapeRot * angleAxis(RAD45, VEC3_FORWARD)
+    wgui.mainHealth:setPosition(healthCenter)
+    wgui.mainHealth:setRotation(healthRotation)
+    wgui.mainHealth:setScale(vec3(0.2, 0.75, 0) * 0.1)
 
-    self.wgui.mainHealthText:setPosition(healthCenter + healthRotation * VEC3_FORWARD * 0.044)
-    self.wgui.mainHealthText:setRotation(healthRotation)
-    self.wgui.mainHealthText:setScale(VEC3_ONE * 0.011)
-    self.wgui.mainHealthText:render()
+    wgui.mainHealthText:setPosition(healthCenter + healthRotation * VEC3_FORWARD * 0.044)
+    wgui.mainHealthText:setRotation(healthRotation)
+    wgui.mainHealthText:setScale(VEC3_ONE * 0.011)
+    wgui.mainHealthText:render()
 
     local uiEngineScale = vec3(0.01, 0.02, 0)
     local uiEngineRightOffset, uiEngineUpOffset = healthRotation * VEC3_RIGHT * 0.0175, healthRotation * VEC3_FORWARD * 0.025
-    self.wgui.engine1Health:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
-    self.wgui.engine1Health:setRotation(healthRotation)
-    self.wgui.engine1Health:setScale(uiEngineScale)
+    wgui.engine1Health:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
+    wgui.engine1Health:setRotation(healthRotation)
+    wgui.engine1Health:setScale(uiEngineScale)
 
-    self.wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
-    self.wgui.engine1HealthText:setRotation(healthRotation)
-    self.wgui.engine1HealthText:setScale(VEC3_ONE * 0.011)
-    self.wgui.engine1HealthText:render()
+    wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
+    wgui.engine1HealthText:setRotation(healthRotation)
+    wgui.engine1HealthText:setScale(VEC3_ONE * 0.011)
+    wgui.engine1HealthText:render()
 
-    self.wgui.engine2Health:setPosition(healthCenter + uiEngineRightOffset + uiEngineUpOffset)
-    self.wgui.engine2Health:setRotation(healthRotation)
-    self.wgui.engine2Health:setScale(uiEngineScale)
+    wgui.engine2Health:setPosition(healthCenter + uiEngineRightOffset + uiEngineUpOffset)
+    wgui.engine2Health:setRotation(healthRotation)
+    wgui.engine2Health:setScale(uiEngineScale)
 
-    self.wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 + uiEngineUpOffset)
-    self.wgui.engine2HealthText:setRotation(healthRotation)
-    self.wgui.engine2HealthText:setScale(VEC3_ONE * 0.011)
-    self.wgui.engine2HealthText:render()
+    wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 + uiEngineUpOffset)
+    wgui.engine2HealthText:setRotation(healthRotation)
+    wgui.engine2HealthText:setScale(VEC3_ONE * 0.011)
+    wgui.engine2HealthText:render()
 
-    self.wgui.engine3Health:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
-    self.wgui.engine3Health:setRotation(healthRotation)
-    self.wgui.engine3Health:setScale(uiEngineScale)
+    wgui.engine3Health:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
+    wgui.engine3Health:setRotation(healthRotation)
+    wgui.engine3Health:setScale(uiEngineScale)
 
-    self.wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
-    self.wgui.engine3HealthText:setRotation(healthRotation)
-    self.wgui.engine3HealthText:setScale(VEC3_ONE * 0.011)
-    self.wgui.engine3HealthText:render()
+    wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
+    wgui.engine3HealthText:setRotation(healthRotation)
+    wgui.engine3HealthText:setScale(VEC3_ONE * 0.011)
+    wgui.engine3HealthText:render()
 
-    self.wgui.engine4Health:setPosition(healthCenter + uiEngineRightOffset - uiEngineUpOffset)
-    self.wgui.engine4Health:setRotation(healthRotation)
-    self.wgui.engine4Health:setScale(uiEngineScale)
+    wgui.engine4Health:setPosition(healthCenter + uiEngineRightOffset - uiEngineUpOffset)
+    wgui.engine4Health:setRotation(healthRotation)
+    wgui.engine4Health:setScale(uiEngineScale)
 
-    self.wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 - uiEngineUpOffset)
-    self.wgui.engine4HealthText:setRotation(healthRotation)
-    self.wgui.engine4HealthText:setScale(VEC3_ONE * 0.011)
-    self.wgui.engine4HealthText:render()
+    wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 - uiEngineUpOffset)
+    wgui.engine4HealthText:setRotation(healthRotation)
+    wgui.engine4HealthText:setScale(VEC3_ONE * 0.011)
+    wgui.engine4HealthText:render()
 
     if self.cl_ejecting then
-        self.wgui.ejectionText:setPosition(shapePos + up * 4.4 + at * 0.1)
-        self.wgui.ejectionText:setRotation(shapeRot)
-        self.wgui.ejectionText:setScale(VEC3_ONE * 0.03)
-        self.wgui.ejectionText:render()
+        wgui.ejectionText:setPosition(shapePos + up * 4.4 + at * 0.1)
+        wgui.ejectionText:setRotation(shapeRot)
+        wgui.ejectionText:setScale(VEC3_ONE * 0.03)
+        wgui.ejectionText:render()
     else
-        for k, v in pairs(self.wgui.targetMarkers.effects) do
+        local targetMarkers = wgui.targetMarkers
+        for k, v in pairs(targetMarkers.effects) do
             if not sm.exists(self.cl_markedEnemies[k]) then
                 self.cl_markedEnemies[k] = nil
             end
 
             if not self.cl_markedEnemies[k] then
                 v:destroy()
-                self.wgui.targetMarkers.effects[k] = nil
+                targetMarkers.effects[k] = nil
             end
         end
 
+        local radarCenter = base - right * 0.32
+        local radarRotation = shapeRot * angleAxis(-RAD45, VEC3_FORWARD)
+        targetMarkers.uiBorder:setPosition(radarCenter)
+        targetMarkers.uiBorder:setRotation(radarRotation)
+        targetMarkers.uiBorder:setScale(vec3(0.2, 0.2, 1))
+
+        local count = 0
         for k, v in pairs(self.cl_markedEnemies) do
-            if not self.wgui.targetMarkers.effects[k] then
+            if not targetMarkers.effects[k] then
                 local marker = sm.effect.createEffect("ShapeRenderable")
-                marker:setParameter("uuid", obj_markerBorder)
+                marker:setParameter("uuid", obj_marker_border)
                 marker:setParameter("color", red)
                 marker:setScale(vec3(2, 0, 2))
                 marker:start()
 
-                self.wgui.targetMarkers.effects[k] = marker
+                local uiMarker = sm.effect.createEffect("ShapeRenderable")
+                uiMarker:setParameter("uuid", obj_marker_dot)
+                uiMarker:setScale(markerDotScale)
+                uiMarker:start()
+
+                targetMarkers.effects[k] = {
+                    marker = marker,
+                    uiMarker = uiMarker,
+                    start = function(_self)
+                        _self.marker:start()
+                        _self.uiMarker:start()
+                    end,
+                    stop = function(_self)
+                        _self.marker:stop()
+                        _self.uiMarker:stop()
+                    end,
+                    destroy = function(_self)
+                        _self.marker:destroy()
+                        _self.uiMarker:destroy()
+                    end
+                }
             end
 
-            local marker = self.wgui.targetMarkers.effects[k]
-            local dir = (v.worldPosition - base):normalize()
-            marker:setPosition(v.worldPosition)
-            marker:setRotation(getRotation(VEC3_FORWARD, dir))
+            local marker = targetMarkers.effects[k]
+            local pos = v.worldPosition
+            marker.marker:setPosition(pos)
+            marker.marker:setRotation(getRotation(VEC3_FORWARD, pos - base))
+
+            local dir = self.shape:transformPoint(pos)
+            local distanceFraction = min(dir:length2() / maxRadarRange, 1)
+            marker.uiMarker:setPosition(radarCenter + radarRotation * vec3(dir.x, dir.z, 0):normalize() * distanceFraction * 0.09)
+            marker.uiMarker:setRotation(radarRotation)
+            marker.uiMarker:setScale(markerDotScale * max(1 - distanceFraction, 0.35))
+            marker.uiMarker:setParameter("color", v.color)
+
+            count = count + 1
         end
     end
 end
 
-function Gunship:cl_updateThrusters(dt)
-    local downwards = 0.5 + (-math.asin(self.shape.up.z) / RAD90) * 0.5
-    local forwards = (BoolToNum(self.cl_actions[3]) - BoolToNum(self.cl_actions[4])) * 0.5
-    local offsetMultiplier = self.cl_actions[21] and 0.35 or 1
-    local baseAnim = downwards - forwards * offsetMultiplier
-    local rotation = -self.shape.body.angularVelocity.z * 0.1 * offsetMultiplier
+function Gunship:cl_updateThrusters(seatedChar, dt)
+    local anim = 0.5
+    local rotation = 0
+    if seatedChar then
+        local angle = math.asin(self.shape.up.z) / RAD90
+        angle = angle == angle and angle or RAD90 * (self.shape.up.z < 0 and -1 or 1) --check nan
+
+        local downwards = 0.5 - angle * 0.5
+        local forwards = (BoolToNum(self.cl_actions[3]) - BoolToNum(self.cl_actions[4])) * 0.5
+        local offsetMultiplier = self.cl_actions[21] and 0.35 or 1
+
+        anim = downwards - forwards * offsetMultiplier
+        rotation = -self.shape.body.angularVelocity.z * 0.1 * offsetMultiplier
+    end
 
     local animSpeed = dt * 2.5
-    self.leftThrusterAnim = clamp(lerp(self.leftThrusterAnim, baseAnim - rotation, animSpeed), 0.001, 0.999)
-    self.rightThrusterAnim = clamp(lerp(self.rightThrusterAnim, baseAnim + rotation, animSpeed), 0.001, 0.999)
+    self.leftThrusterAnim = clamp(lerp(self.leftThrusterAnim, anim - rotation, animSpeed), 0.001, 0.999)
+    self.rightThrusterAnim = clamp(lerp(self.rightThrusterAnim, anim + rotation, animSpeed), 0.001, 0.999)
 
     self.interactable:setAnimProgress("engine1_rotate", self.rightThrusterAnim)
     self.interactable:setAnimProgress("engine2_rotate", self.leftThrusterAnim)
@@ -1485,7 +1543,7 @@ local shootEffects = {
 function Gunship:cl_shoot(id)
     local effect = shootEffects[id]
     sm.effect.playHostedEffect(effect[2], self.interactable, effect[1], {
-        offsetRotation = angleAxis(math.rad(-90), VEC3_RIGHT)
+        offsetRotation = angleAxis(-RAD90, VEC3_RIGHT)
     })
 end
 
