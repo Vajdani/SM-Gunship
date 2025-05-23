@@ -317,7 +317,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
     local mass = self.sv_mass or self.cl_mass
 
     local direction = char.direction
-    local force = vec3(0, 0, (isServer() and 10 or getGravity()) + 0.45) + self:GetMoveDir() * (_actions[16] and boostSpeed or moveSpeed) - velocity * 0.5
+    local force = vec3(0, 0, (isServer() and 10 or getGravity()) * 1.047494) + self:GetMoveDir() * (_actions[16] and boostSpeed or moveSpeed) - velocity * 0.5
     local offset = VEC3_ZERO
     local forceMultiplier = (4 - missingEngines) / 4
     if missingEngines > 0 then
@@ -329,11 +329,11 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
 
         offset = offset / (4 - missingEngines)
     end
-    applyImpulse(self.shape, force * forceMultiplier * dt * mass, true, offset)
+    applyImpulse(shape, force * forceMultiplier * dt * mass, true, offset)
 
     local torque =
         -body.angularVelocity * 0.3 -
-        self.shape.up * (BoolToNum(_actions[1]) - BoolToNum(_actions[2])) * 0.15
+        shape.up * (BoolToNum(_actions[1]) - BoolToNum(_actions[2])) * 0.15
     if _actions[18] or (self.sv_forceStatic or self.cl_forceStatic) then
         torque = torque + CalculateRightVector(self.aimDirection):cross(shape.right)
     else
