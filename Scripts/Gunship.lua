@@ -411,7 +411,7 @@ function Gunship:sv_takeDamage(damage)
             end
             self.sv_damageAreas = {}
 
-            self:sv_applyDeathImpulse(true)
+            self:sv_applyDeathImpulse()
         end
 
         self:setClientData(true, 3)
@@ -420,7 +420,7 @@ function Gunship:sv_takeDamage(damage)
     end
 end
 
-function Gunship:sv_applyDeathImpulse(destroyed)
+function Gunship:sv_applyDeathImpulse()
     local char, cId = self.interactable:getSeatCharacter(), self.shape.body:getCreationId()
     local pos = self.shape.worldPosition
     local contacts = sm.physics.getSphereContacts(pos, kamikazeRadius)
@@ -442,7 +442,7 @@ function Gunship:sv_applyDeathImpulse(destroyed)
         end
     end
 
-    if not minDir and destroyed then
+    if not minDir then
         minDir = (
             self.shape.at * (random() * 2 - 1) +
             self.shape.up * (random() * 2 - 1) +
@@ -450,14 +450,9 @@ function Gunship:sv_applyDeathImpulse(destroyed)
         )
     end
 
-    if minDir then
-        minDir = minDir:normalize()
-        applyImpulse(self.shape, minDir * random(10, 20) * self.sv_mass, true)
-    end
-
-    if destroyed then
-        applyTorque(self.shape.body, (self.shape.at * GetImpulseMultiplier() + self.shape.right * GetImpulseMultiplier()) * self.sv_mass, true)
-    end
+    minDir = minDir:normalize()
+    applyImpulse(self.shape, minDir * random(10, 20) * self.sv_mass, true)
+    applyTorque(self.shape.body, (self.shape.at * GetImpulseMultiplier() + self.shape.right * GetImpulseMultiplier()) * self.sv_mass, true)
 end
 
 function Gunship:sv_updateAction(args)
@@ -519,7 +514,6 @@ function Gunship:sv_selfDestruct(char)
     self.sv_destroyed = true
     self.sv_destructionTimer = destructionTime
     self:sv_unseat(char)
-    -- self:sv_applyDeathImpulse(false)
     self:setClientData(true, 5)
 end
 
