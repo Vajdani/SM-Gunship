@@ -90,7 +90,13 @@ end
 
 oldRaycast = oldRaycast or sm.physics.raycast
 function sm.physics.raycast(startPos, endPos, ignoredObject, mask)
-    local hit, result = oldRaycast(startPos, endPos, ignoredObject, collisionFilter)
+    local hit, result
+    if sm.exists(ignoredObject) then
+        hit, result = oldRaycast(startPos, endPos, ignoredObject, collisionFilter)
+    else
+        hit, result = oldRaycast(startPos, endPos, nil, collisionFilter)
+    end
+
     local cHit, cResult = CheckCustomCollision(hit, result)
     if cHit then
         return true, cResult
@@ -101,7 +107,13 @@ end
 
 oldSpherecast = oldSpherecast or sm.physics.spherecast
 function sm.physics.spherecast(startPos, endPos, radius, object, mask)
-    local hit, result = oldSpherecast(startPos, endPos, radius, object, collisionFilter)
+    local hit, result
+    if sm.exists(object) then
+        hit, result = oldSpherecast(startPos, endPos, object, collisionFilter)
+    else
+        hit, result = oldSpherecast(startPos, endPos, nil, collisionFilter)
+    end
+
     local cHit, cResult = CheckCustomCollision(hit, result)
     if cHit then
         return true, cResult
