@@ -111,7 +111,7 @@ function sm.physics.spherecast(startPos, endPos, radius, object, mask)
     if sm.exists(object) then
         hit, result = oldSpherecast(startPos, endPos, radius, object, collisionFilter)
     else
-        hit, result = oldSpherecast(startPos, endPos, radius,  nil, collisionFilter)
+        hit, result = oldSpherecast(startPos, endPos, radius, nil, collisionFilter)
     end
 
     local cHit, cResult = CheckCustomCollision(hit, result)

@@ -1132,6 +1132,8 @@ local turretOffset = {
     vec3(0, -3.3125, -1)
 }
 function Gunship:cl_updateTracers(camPos, charDir, dt)
+    if self.cl_ejecting then return end
+
     local pos, at, up, right =
         self.shape:getInterpolatedWorldPosition() + self.shape.velocity * dt,
         self.shape:getInterpolatedAt(),
