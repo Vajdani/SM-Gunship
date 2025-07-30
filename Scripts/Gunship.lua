@@ -154,7 +154,7 @@ function Gunship:sv_e_onExplode(args)
         local trigger = v.trigger
         local dir = trigger:getWorldPosition() - position
         if dir:length() <= radius then
-            self:sv_onDamageAreaHit(trigger, trigger:getWorldPosition(), nil, -dir:normalize(), nil, nil, damage, nil, nil, sm.uuid.getNil())
+            self:sv_onDamageAreaHit(trigger, trigger:getWorldPosition(), nil, -dir:normalize(), nil, nil, damage, nil, nil, uuid_nil)
         end
     end
 
@@ -168,7 +168,7 @@ function Gunship:sv_e_onHit(args)
         local trigger = v.trigger
         local min, max = trigger:getWorldMin(), trigger:getWorldMax()
         if x >= min.x and x <= max.x and y >= min.y and y <= max.y and z > min.z and z <= max.z then
-            self:sv_onDamageAreaHit(trigger, pos, nil, -args.normal --[[@as Vec3]], nil, nil, args.damage, nil, nil, sm.uuid.getNil())
+            self:sv_onDamageAreaHit(trigger, pos, nil, -args.normal --[[@as Vec3]], nil, nil, args.damage, nil, nil, uuid_nil)
             return
         end
     end
@@ -282,7 +282,7 @@ function Gunship:UpdateDamageAreas()
                     if userData then
                         if servermode and (userData.pesticideId or userData.chemical) and area.pesticideDamageTimer <= 0 then
                             area.pesticideDamageTimer = pesticideDamageTime
-                            self:sv_onDamageAreaHit(trigger, enginePos, nil, VEC3_ZERO, nil, nil, pesticideDamage, nil, nil, sm.uuid.getNil())
+                            self:sv_onDamageAreaHit(trigger, enginePos, nil, VEC3_ZERO, nil, nil, pesticideDamage, nil, nil, uuid_nil)
                         end
 
                         if (userData.water or userData.oil or userData.chemical) then
@@ -864,10 +864,11 @@ function Gunship:client_onFixedUpdate(dt)
         self.cl_mass = self:GetBodyMass()
     end
 
+    local missingEngines = self:UpdateDamageAreas()
+
     local seatedChar = self.interactable:getSeatCharacter()
     if seatedChar then
         --add engine flooding indicator on hud
-        local missingEngines = self:UpdateDamageAreas()
         if not sm.isHost and missingEngines < 4 then
             self:ApplyPhysics(seatedChar, self.shape, self.shape.body, self.shape.velocity, missingEngines, dt)
         end
@@ -1177,7 +1178,7 @@ end
 
 -- local function GetItemScale(uuid)
 -- 	local scale = 1
--- 	if uuid ~= sm.uuid.getNil() and not sm.item.isTool(uuid) then
+-- 	if uuid ~= uuid_nil and not sm.item.isTool(uuid) then
 -- 		local size = sm.item.getShapeSize( uuid )
 -- 		local max = math.max( math.max( size.x, size.y ), size.z )
 -- 		scale = 1 / max + ( size:length() - 1.4422496 ) * 0.015625
@@ -1698,7 +1699,7 @@ function Gunship:TransformLocalDirection(dir)
 end
 
 function Gunship:GetDestructionResistence(uuid)
-    if uuid == sm.uuid.getNil() then
+    if uuid == uuid_nil then
         return 10
     end
 
