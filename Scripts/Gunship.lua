@@ -1360,8 +1360,8 @@ function Gunship:cl_updateCockpitUI(dt)
 
     if self.cl_ejecting then
         wgui.ejectionText:setPosition(shapePos + up * 4.4 + at * 0.1)
-        wgui.ejectionText:setRotation(shapeRot * angleAxis(-RAD90, VEC3_RIGHT))
-        wgui.ejectionText:setScale(VEC3_ONE * 0.2)
+        wgui.ejectionText:setRotation(shapeRot)
+        wgui.ejectionText:setScale(VEC3_ONE * 0.03)
         wgui.ejectionText:render()
     else
         local targetMarkers = wgui.targetMarkers
