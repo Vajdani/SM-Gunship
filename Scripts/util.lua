@@ -58,13 +58,11 @@ VEC3_FORWARD = vec3(0, 1, 0)
 VEC3_UP = vec3(0, 0, 1)
 VEC3_ZERO = sm.vec3.zero()
 VEC3_ONE = sm.vec3.one()
-VEC3_TENTH = VEC3_ONE * 0.1
 RAD90 = math.pi * 0.5
 RAD75 = math.rad(75)
 RAD45 = math.pi * 0.25
 RAD30 = math.pi / 6
 DIVRAD90 = 1 / RAD90
-ROT_UP180 = angleAxis(math.pi, VEC3_UP)
 
 obj_marker = uuid("7030b7b1-f0a1-4b24-bd0d-11d0a42185e6")
 obj_marker_border = uuid("37e13ac0-76f7-438c-b7fe-2149ffa19eb5")
@@ -121,22 +119,13 @@ end
 ---@field text string
 Text3D = class()
 
-local letterOffset = VEC3_UP * 0.1 + VEC3_RIGHT * 0.05
-local defaultFontSize = 20
-
 ---@param length number
 ---@return Text3D
 function Text3D:init(length, align)
-    self.fontsize = defaultFontSize
     self.effects = {}
     for i = 1, length do
-        -- local effect = sm.effect.createEffect("ShapeRenderable")
-        -- effect:setParameter("uuid", obj_marker)
-        local effect = sm.effect.createEffect("Text")
-        effect:setParameter("FontName", "SM_Header")
-        effect:setParameter("FontSize", self.fontsize)
-        effect:setParameter("TextMaterial", "DifAsgNoShadow")
-        effect:setParameter("Color", colour(1,1,1,1))
+        local effect = sm.effect.createEffect("ShapeRenderable")
+        effect:setParameter("uuid", obj_marker)
 
         self.effects[i] = effect
     end
@@ -194,16 +183,14 @@ function Text3D:update(text)
         for i = 1, #self.effects do
             local current = text:sub(i, i)
             if current ~= "" then
-                -- self.effects[i]:setParameter("uuid", uuid(g_font.Char2uuid[current]))
-                self.effects[i]:setParameter("TextContent", current)
+                self.effects[i]:setParameter("uuid", uuid(g_font.Char2uuid[current]))
             end
         end
     else
         for i = 1, #self.effects do
             local current = text:sub(i, i)
             if current ~= "" and current ~= self.text:sub(i, i) then
-                -- self.effects[i]:setParameter("uuid", uuid(g_font.Char2uuid[current]))
-                self.effects[i]:setParameter("TextContent", current)
+                self.effects[i]:setParameter("uuid", uuid(g_font.Char2uuid[current]))
             end
         end
     end
@@ -233,18 +220,15 @@ end
 
 function Text3D:setColour(colour)
     for k, v in pairs(self.effects) do
-        v:setParameter("Color", colour)
+        v:setParameter("color", colour)
     end
 end
 
 function Text3D:render()
     local position, rotation, scale = self.position, self.rotation, self.scale
-    local fontRatio = self.fontsize/defaultFontSize
-    position = position + rotation * letterOffset * scale * fontRatio
-
     local textLength = #self.text
-    local dir = rotation * VEC3_RIGHT * max(scale:length(), 0.022) * 0.1 * fontRatio
-    local half = 1
+    local dir = rotation * VEC3_RIGHT * max(scale:length(), 0.022)
+    local half = 0
     if self.align == 2 then
         half = textLength
     elseif self.align == 3 then
@@ -254,7 +238,7 @@ function Text3D:render()
     for k, v in ipairs(self.effects) do
         if k <= textLength then
             v:setPosition(position - dir * (k - half) * 0.5)
-            v:setRotation(rotation * ROT_UP180)
+            v:setRotation(rotation * angleAxis(math.pi, VEC3_FORWARD))
             v:setScale(scale)
         end
     end

@@ -285,14 +285,5 @@
 				"type": "audio"
 			}
 		]
-	},
-	"Text": {
-		"effectList": [
-			{
-				"attached": true,
-				"type": "text",
-				"offset": { "x": 0, "y": 0, "z": 0 }
-			}
-		]
 	}
 }

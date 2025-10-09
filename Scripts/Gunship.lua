@@ -1304,20 +1304,13 @@ function Gunship:cl_updateCockpitUI(dt)
 
     local healthCenter = base + right * 0.32
     local healthRotation = shapeRot * angleAxis(RAD45, VEC3_FORWARD)
-    local healthTextRotation = healthRotation * angleAxis(math.pi * -0.5, VEC3_RIGHT)
     wgui.mainHealth:setPosition(healthCenter)
     wgui.mainHealth:setRotation(healthRotation)
     wgui.mainHealth:setScale(vec3(0.2, 0.75, 0) * 0.1)
 
-    -- self.t = (self.t or 0) + dt
-    -- local health = maxHealth --* math.abs(math.sin(self.t * 0.25))
-    -- for k, v in pairs({"mainHealthText", "engine1HealthText", "engine2HealthText", "engine3HealthText", "engine4HealthText"}) do
-    --     wgui[v]:update(max(math.ceil(health / maxHealth * 100), 0).."%")
-    -- end
-
-    wgui.mainHealthText:setPosition(healthCenter + healthRotation * VEC3_FORWARD * 0.045)
-    wgui.mainHealthText:setRotation(healthTextRotation)
-    wgui.mainHealthText:setScale(VEC3_TENTH)
+    wgui.mainHealthText:setPosition(healthCenter + healthRotation * VEC3_FORWARD * 0.044)
+    wgui.mainHealthText:setRotation(healthRotation)
+    wgui.mainHealthText:setScale(VEC3_ONE * 0.011)
     wgui.mainHealthText:render()
 
     local uiEngineScale = vec3(0.01, 0.02, 0)
@@ -1326,36 +1319,36 @@ function Gunship:cl_updateCockpitUI(dt)
     wgui.engine1Health:setRotation(healthRotation)
     wgui.engine1Health:setScale(uiEngineScale)
 
-    wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset * 1.7 + uiEngineUpOffset)
-    wgui.engine1HealthText:setRotation(healthTextRotation)
-    wgui.engine1HealthText:setScale(VEC3_TENTH)
+    wgui.engine1HealthText:setPosition(healthCenter - uiEngineRightOffset + uiEngineUpOffset)
+    wgui.engine1HealthText:setRotation(healthRotation)
+    wgui.engine1HealthText:setScale(VEC3_ONE * 0.011)
     wgui.engine1HealthText:render()
 
     wgui.engine2Health:setPosition(healthCenter + uiEngineRightOffset + uiEngineUpOffset)
     wgui.engine2Health:setRotation(healthRotation)
     wgui.engine2Health:setScale(uiEngineScale)
 
-    wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.85 + uiEngineUpOffset)
-    wgui.engine2HealthText:setRotation(healthTextRotation)
-    wgui.engine2HealthText:setScale(VEC3_TENTH)
+    wgui.engine2HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 + uiEngineUpOffset)
+    wgui.engine2HealthText:setRotation(healthRotation)
+    wgui.engine2HealthText:setScale(VEC3_ONE * 0.011)
     wgui.engine2HealthText:render()
 
     wgui.engine3Health:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
     wgui.engine3Health:setRotation(healthRotation)
     wgui.engine3Health:setScale(uiEngineScale)
 
-    wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset * 1.7 - uiEngineUpOffset)
-    wgui.engine3HealthText:setRotation(healthTextRotation)
-    wgui.engine3HealthText:setScale(VEC3_TENTH)
+    wgui.engine3HealthText:setPosition(healthCenter - uiEngineRightOffset - uiEngineUpOffset)
+    wgui.engine3HealthText:setRotation(healthRotation)
+    wgui.engine3HealthText:setScale(VEC3_ONE * 0.011)
     wgui.engine3HealthText:render()
 
     wgui.engine4Health:setPosition(healthCenter + uiEngineRightOffset - uiEngineUpOffset)
     wgui.engine4Health:setRotation(healthRotation)
     wgui.engine4Health:setScale(uiEngineScale)
 
-    wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.85 - uiEngineUpOffset)
-    wgui.engine4HealthText:setRotation(healthTextRotation)
-    wgui.engine4HealthText:setScale(VEC3_TENTH)
+    wgui.engine4HealthText:setPosition(healthCenter + uiEngineRightOffset * 1.6 - uiEngineUpOffset)
+    wgui.engine4HealthText:setRotation(healthRotation)
+    wgui.engine4HealthText:setScale(VEC3_ONE * 0.011)
     wgui.engine4HealthText:render()
 
     if self.cl_ejecting then
