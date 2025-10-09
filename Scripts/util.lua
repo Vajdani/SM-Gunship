@@ -228,7 +228,7 @@ function Text3D:render()
     local position, rotation, scale = self.position, self.rotation, self.scale
     local textLength = #self.text
     local dir = rotation * VEC3_RIGHT * max(scale:length(), 0.022)
-    local half = 0
+    local half = 1
     if self.align == 2 then
         half = textLength
     elseif self.align == 3 then
