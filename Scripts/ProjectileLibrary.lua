@@ -55,7 +55,7 @@ end
 AddFromProjectileDB("$SURVIVAL_DATA/Projectiles/projectiles.json")
 AddFromProjectileDB("$GAME_DATA/Projectiles/projectiles.json")
 AddFromProjectileDB("$CHALLENGE_DATA/Projectiles/projectiles.json")
-AddFromProjectileDB("$CONTENT_a3db3704-0fa0-4685-befe-e668f81149e1/Projectiles/projectiles.projectileset")
+AddFromProjectileDB("$CONTENT_39a89fcb-db1d-43b6-b9c6-16dfab7027ba/Projectiles/projectiles.projectileset")
 
 ModDatabase.loadShapesets()
 for k, modId in pairs(ModDatabase.getAllLoadedMods(true)) do
