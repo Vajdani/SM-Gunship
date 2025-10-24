@@ -177,7 +177,12 @@ function Gunship:sv_e_onHit(args)
 end
 
 ---@param velocity Vec3
+---@param uuid Uuid
 function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, source, damage, data, normal, uuid)
+    if not uuid:isNil() then
+        sm.GUNSHIP.World:server_onProjectile(hitPos, airTime, velocity, name, source, damage, data, normal or -velocity:normalize(), self.shape, uuid)
+    end
+
     local effect = GetProjectileData(uuid).effect
     if effect then
         local dir = -velocity:normalize()
@@ -329,6 +334,11 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
 
         offset = offset / (4 - missingEngines)
     end
+
+    -- if serverTick()%20 == 0 then
+    --     sm.effect.playEffect("Part - Upgrade", self.shape:transformLocalPoint(offset))
+    -- end
+
     applyImpulse(shape, force * forceMultiplier * dt * mass, true, offset)
 
     local torque =
@@ -339,13 +349,13 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
     else
         self.aimDirection = direction
 
-        local steer = CalculateRightVector(direction):cross(shape.right)
+        local steer = shape.up:cross(direction)
         local length = steer:length()
         if length > turnLimit then
             steer = steer * (turnLimit / length)
         end
 
-        torque = torque + shape.up:cross(direction) + steer
+        torque = torque + CalculateRightVector(direction):cross(shape.right) + steer
     end
     applyTorque(body, torque * mass * forceMultiplier, true)
 end
@@ -393,10 +403,10 @@ function Gunship:sv_takeDamage(damage)
     if self.sv_health <= 0 then return end
 
     damage = math.ceil(damage)
+    self.sv_health = self.sv_health - damage
 
     print(("[Gunship %s] Recieved %s damage (%s/%s)"):format(self.shape.id, damage, self.sv_health, maxHealth))
 
-    self.sv_health = self.sv_health - damage
     if self.sv_health <= 0 then
         print(("[Gunship %s] Took fatal damage!"):format(self.shape.id))
 
@@ -842,8 +852,13 @@ function Gunship:client_onUpdate(dt)
         sm.camera.setCameraState(2)
     end
 
+    -- if self.cl_destroyed then
+    --     sm.camera.setPosition(camPos)
+    --     sm.camera.setRotation(self.shape.worldRotation * angleAxis(RAD90, VEC3_RIGHT) * angleAxis(math.pi, VEC3_FORWARD))
+    -- else
     sm.camera.setPosition(camPos)
     sm.camera.setDirection(charDir)
+    -- end
 
     if self.cl_actions[18] then
         sm.camera.setFov(sm.camera.getDefaultFov() * zoomFraction)

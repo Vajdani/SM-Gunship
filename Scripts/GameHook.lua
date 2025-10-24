@@ -4,6 +4,8 @@ dofile "$SURVIVAL_DATA/Scripts/util.lua"
 dofile "font.lua"
 dofile "util.lua"
 
+sm.GUNSHIP = {}
+
 ---@class GameHook : ToolClass
 GameHook = class()
 
@@ -122,7 +124,7 @@ function sm.physics.spherecast(startPos, endPos, radius, object, mask)
     return oldSpherecast(startPos, endPos, radius, object, mask)
 end
 
-g_explosionTriggers = g_explosionTriggers or {}
+-- g_explosionTriggers = g_explosionTriggers or {}
 
 oldExplode = oldExplode or sm.physics.explode
 function sm.physics.explode(position, level, destructionRadius, impulseRadius, magnitude, effectName, ignoreShape, parameters)
@@ -170,4 +172,16 @@ function sm.physics.explode(position, level, destructionRadius, impulseRadius, m
     -- })
 
     oldExplode(position, level, destructionRadius, impulseRadius, magnitude, effectName, ignoreShape, parameters)
+end
+
+overrideLoaded = overrideLoaded or false
+
+oldCommand = oldCommand or sm.game.bindChatCommand
+function sm.game.bindChatCommand(command, params, callback, help)
+    if not overrideLoaded then
+        overrideLoaded = true
+        dofile ("$CONTENT_39a89fcb-db1d-43b6-b9c6-16dfab7027ba/Scripts/vanilla_override.lua")
+    end
+
+    return oldCommand(command, params, callback, help)
 end
