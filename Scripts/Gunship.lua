@@ -295,7 +295,7 @@ function Gunship:UpdateDamageAreas()
             for k, v in pairs(contents) do
                 if sm.exists(v) and type(v) == "AreaTrigger" then
                     local userData = v:getUserData()
-                    if userData then
+                    if userData and not userData.isCustomCollision then
                         if servermode and (userData.pesticideId or userData.chemical) and area.pesticideDamageTimer <= 0 then
                             area.pesticideDamageTimer = pesticideDamageTime
                             self:sv_onDamageAreaHit(trigger, enginePos, nil, VEC3_ZERO, nil, nil, pesticideDamage, nil, nil, uuid_nil)

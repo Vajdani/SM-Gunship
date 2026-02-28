@@ -254,3 +254,12 @@ function sm.melee.meleeAttack(uuid, damage, origin, directionRange, source, dela
 
     oldMeleeAttack(uuid, damage, origin, directionRange, source, delay, power)
 end
+
+oldCreateBox = oldCreateBox or sm.areaTrigger.createBox
+function sm.areaTrigger.createBox(dimension, position, rotation, filter, userdata)
+    if userdata and userdata.pesticideId then
+        filter = nil
+    end
+
+    return oldCreateBox(dimension, position, rotation, filter, userdata)
+end
