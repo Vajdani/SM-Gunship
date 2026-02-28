@@ -180,7 +180,18 @@ end
 ---@param uuid Uuid
 function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, source, damage, data, normal, uuid)
     if not uuid:isNil() then
-        sm.GUNSHIP.World:server_onProjectile(hitPos, airTime, velocity, name, source, damage, data, normal or -velocity:normalize(), self.shape, uuid)
+        sm.event.sendToWorld(sm.world.getCurrentWorld(), "sv_e_onProjectile", {
+            position = hitPos,
+            airTime = airTime,
+            velocity = velocity,
+            projectileName = name,
+            shooter = source,
+            damage = damage,
+            customData = data,
+            normal = normal,
+            target = self.shape,
+            uuid = uuid,
+        })
     end
 
     local effect = GetProjectileData(uuid).effect
@@ -335,11 +346,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
         offset = offset / (4 - missingEngines)
     end
 
-    -- if serverTick()%20 == 0 then
-    --     sm.effect.playEffect("Part - Upgrade", self.shape:transformLocalPoint(offset))
-    -- end
-
-    applyImpulse(shape, force * forceMultiplier * dt * mass, true, offset)
+    applyImpulse(shape, force * forceMultiplier * dt * mass, true, self.shape.worldRotation * vec3(offset.x, offset.z, offset.y))
 
     local torque =
         -body.angularVelocity * 0.3 -

@@ -6,11 +6,20 @@ for k, v in pairs(_G) do
 		goto continue
 	end
 
-    if k == "BaseWorld" or ((v.cellMaxX or v.cellMaxY or v.cellMinX or v.cellMinY) and not sm.GUNSHIP.World) then
-        gunship_originalFuncs.server_onCreate = v.server_onCreate
-        function v:server_onCreate()
-            sm.GUNSHIP.World = self
-            gunship_originalFuncs.server_onCreate(self)
+    if k == "BaseWorld" or ((v.cellMaxX or v.cellMaxY or v.cellMinX or v.cellMinY)) then
+        function v:sv_e_onProjectile(args)
+            self:server_onProjectile(
+                args.position,
+                args.airTime,
+                args.velocity,
+                args.projectileName,
+                args.shooter,
+                args.damage,
+                args.customData,
+                args.normal,
+                args.target,
+                args.uuid
+            )
         end
     end
 

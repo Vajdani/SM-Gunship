@@ -6,15 +6,52 @@ dofile "util.lua"
 
 sm.GUNSHIP = {}
 
+
+local collisionFilter = sm.physics.filter.default + sm.physics.filter.areaTrigger
+local function PerformCustomMelee(uuid, damage, origin, directionRange, source, delay, power)
+    local data = GetMeleeData(uuid)
+    local hit, result = sm.physics.spherecast(origin, origin + directionRange, data.collision, source.character, collisionFilter)
+    if type(result) == "table" and result.isCustomCollision then
+        local shape = result:getShape()
+        if shape.interactable then
+            sm.event.sendToInteractable(shape.interactable, "sv_e_onHit", {
+                position = result.pointWorld,
+                damage = damage,
+                normal = result.normalWorld,
+                source = source
+            })
+        end
+
+        sm.effect.playEffect(data.effect, result.pointWorld, sm.vec3.zero(), sm.vec3.getRotation(sm.vec3.new(0,0,1), result.normalWorld))
+
+        if data.effect == "Weapon - Impact" then
+            sm.effect.playEffect("Sledgehammer - Hit", result.pointWorld, sm.vec3.zero(), sm.vec3.getRotation(sm.vec3.new(0,0,1), result.normalWorld), sm.vec3.one(), {
+                Material = shape:getMaterialId()
+            })
+        end
+    end
+end
+
+
 ---@class GameHook : ToolClass
 GameHook = class()
+
+function GameHook:sv_onMelee(args)
+    PerformCustomMelee(args[1], args[2], args[3], args[4], args[5], args[6], args[7])
+end
+
+
 
 function GameHook:client_onCreate()
     if g_gameHook then return end
 
-    dofile "$CONTENT_DATA/Scripts/ProjectileLibrary.lua"
+    self:LoadLibraries()
 
     g_gameHook = self.tool
+end
+
+function GameHook:client_onRefresh()
+    self:LoadLibraries()
 end
 
 function GameHook:cl_delayFade(delay)
@@ -25,6 +62,27 @@ function GameHook:cl_delayFade(delay)
     end
 
     sm.gui.endFadeToBlack(2)
+end
+
+function GameHook:cl_onMelee(args)
+    self.network:sendToServer("sv_onMelee", args)
+end
+
+
+
+function GameHook:LoadLibraries()
+    dofile("$CONTENT_40639a2c-bb9f-4d4f-b88c-41bfe264ffa8/Scripts/ModDatabase.lua")
+    ModDatabase.loadShapesets()
+
+    dofile "$CONTENT_DATA/Scripts/ProjectileLibrary.lua"
+    dofile "$CONTENT_DATA/Scripts/MeleeLibrary.lua"
+
+    for k, modId in pairs(ModDatabase.getAllLoadedMods(true)) do
+        RegisterModInProjectileLibrary(modId)
+        RegisterModInMeleeLibrary(modId)
+    end
+
+    ModDatabase.unloadShapesets()
 end
 
 -- function GameHook:sv_explosionDelay(args)
@@ -55,7 +113,6 @@ end
 
 
 
-local collisionFilter = sm.physics.filter.default + sm.physics.filter.areaTrigger
 local function CheckCustomCollision(hit, result)
     if not hit or result.type ~= "areaTrigger" then return false, result end
 
@@ -74,6 +131,7 @@ local function CheckCustomCollision(hit, result)
         pointLocal = result.pointLocal,
         pointWorld = result.pointWorld,
         type = "body",
+        isCustomCollision = true,
         valid = result.valid,
         getAreaTrigger = function() return nil end,
         getBody = function()
@@ -184,4 +242,15 @@ function sm.game.bindChatCommand(command, params, callback, help)
     end
 
     return oldCommand(command, params, callback, help)
+end
+
+oldMeleeAttack = oldMeleeAttack or sm.melee.meleeAttack
+function sm.melee.meleeAttack(uuid, damage, origin, directionRange, source, delay, power)
+    if sm.isServerMode() then
+        PerformCustomMelee(uuid, damage, origin, directionRange, source, delay, power)
+    else
+        sm.event.sendToTool(g_gameHook, "cl_onMelee", { uuid, damage, origin, directionRange, source, delay, power })
+    end
+
+    oldMeleeAttack(uuid, damage, origin, directionRange, source, delay, power)
 end
