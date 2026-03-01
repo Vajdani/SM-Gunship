@@ -348,9 +348,7 @@ function Gunship:ApplyPhysics(char, shape, body, velocity, missingEngines, dt)
 
     applyImpulse(shape, force * forceMultiplier * dt * mass, true, self.shape.worldRotation * vec3(offset.x, offset.z, offset.y))
 
-    local torque =
-        -body.angularVelocity * 0.3 -
-        shape.up * (BoolToNum(_actions[1]) - BoolToNum(_actions[2])) * 0.15
+    local torque = -body.angularVelocity * 0.3 -- shape.up * (BoolToNum(_actions[1]) - BoolToNum(_actions[2])) * 0.15
     if _actions[18] or (self.sv_forceStatic or self.cl_forceStatic) then
         torque = torque + CalculateRightVector(self.aimDirection):cross(shape.right)
     else
