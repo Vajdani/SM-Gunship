@@ -237,7 +237,6 @@ end
 
 function Gunship:server_onCollision(other, position, selfPointVelocity, otherPointVelocity, normal)
     local impactDeg = math.abs((selfPointVelocity + otherPointVelocity):normalize():dot(normal))
-    print(math.deg(impactDeg))
     if isAnyOf(other, self.shape.body:getCreationBodies()) or type(other) == "Character" and other:isPlayer() or impactDeg < math.rad(30) then return end
 
     local damage = (selfPointVelocity + otherPointVelocity):length() * 2.5
@@ -1203,10 +1202,14 @@ function Gunship:cl_updateTracers(camPos, charDir, dt)
                 self.tracers[i]:stop()
             end
         end
-    elseif self.tracers[1].effect:isPlaying() then
+
+        self.tracersPlaying = true
+    elseif self.tracersPlaying then
         for i = 1, 2 do
             self.tracers[i]:stop()
         end
+
+        self.tracersPlaying = false
     end
 end
 
