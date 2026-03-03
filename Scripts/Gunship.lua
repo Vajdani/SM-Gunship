@@ -100,7 +100,7 @@ local yellow = colour(1, 1, 0)
 local black = colour(0, 0, 0)
 
 function Gunship:server_onCreate()
-    if self.shape.body:isStatic() and not self.shape.body:isOnLift() or #self.shape.body:getCreationShapes() > 1 then
+    if self.shape.body:isStatic() and not self.shape.body:isOnLift() then
         local uuid, rot = self.shape.uuid, self.shape.worldRotation
         sm.shape.createPart(uuid, self.shape.worldPosition - rot * sm.item.getShapeOffset(uuid), rot, true, true)
         self.shape:destroyShape()
