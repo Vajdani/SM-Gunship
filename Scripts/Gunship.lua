@@ -53,12 +53,24 @@ local destroyActions = {
 local turnLimit = 0.3
 local rayFilter = sm.physics.filter.default --+ sm.physics.filter.areaTrigger
 local destructionTime = 5 * 40
-local destructionResistence = {
+local bodyDestructionResistence = {
     [1] = 0.9,
     [2] = 0.75,
     [3] = 0.5,
     [4] = 0.25,
     [5] = 0.1,
+    [6] = 0,
+    [7] = 0,
+    [8] = 0,
+    [9] = 0,
+    [10] = 0
+}
+local engineDestructionResistence = {
+    [1] = 0.5,
+    [2] = 0.35,
+    [3] = 0.2,
+    [4] = 0.1,
+    [5] = 0,
     [6] = 0,
     [7] = 0,
     [8] = 0,
@@ -88,7 +100,7 @@ local yellow = colour(1, 1, 0)
 local black = colour(0, 0, 0)
 
 function Gunship:server_onCreate()
-    if self.shape.body:isStatic() and not self.shape.body:isOnLift() then
+    if self.shape.body:isStatic() and not self.shape.body:isOnLift() or #self.shape.body:getCreationShapes() > 1 then
         local uuid, rot = self.shape.uuid, self.shape.worldRotation
         sm.shape.createPart(uuid, self.shape.worldPosition - rot * sm.item.getShapeOffset(uuid), rot, true, true)
         self.shape:destroyShape()
@@ -136,7 +148,7 @@ function Gunship:server_onProjectile(position, airTime, velocity, projectileName
     local level = self:GetDestructionResistence(uuid)
     if level == 0 then return end
 
-    self:sv_takeDamage(damage * (1 - destructionResistence[level]))
+    self:sv_takeDamage(damage * (1 - bodyDestructionResistence[level]))
 end
 
 function Gunship:server_onMelee(position, attacker, damage, power, direction, normal)
@@ -207,7 +219,7 @@ function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
     local area = self.sv_damageAreas[id]
     if area.health <= 0 then return true end
 
-    local finalDamage = math.ceil(damage * (1 - destructionResistence[level]))
+    local finalDamage = math.ceil(damage * (1 - engineDestructionResistence[level]))
     area.health = area.health - finalDamage
     print(("[Gunship %s Thruster %s] Recieved %s damage (%s/%s)"):format(self.shape.id, id, finalDamage, area.health, thrusterMaxHealth))
 
@@ -224,9 +236,11 @@ function Gunship:sv_onDamageAreaHit(trigger, hitPos, airTime, velocity, name, so
 end
 
 function Gunship:server_onCollision(other, position, selfPointVelocity, otherPointVelocity, normal)
-    if isAnyOf(other, self.shape.body:getCreationBodies()) or type(other) == "Character" and other:isPlayer() then return end
+    local impactDeg = math.abs((selfPointVelocity + otherPointVelocity):normalize():dot(normal))
+    print(math.deg(impactDeg))
+    if isAnyOf(other, self.shape.body:getCreationBodies()) or type(other) == "Character" and other:isPlayer() or impactDeg < math.rad(30) then return end
 
-    local damage = (selfPointVelocity + otherPointVelocity):length()
+    local damage = (selfPointVelocity + otherPointVelocity):length() * 2.5
     if damage >= 20 then
         self:sv_takeDamage(damage)
     end
