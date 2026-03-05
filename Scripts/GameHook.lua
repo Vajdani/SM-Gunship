@@ -113,14 +113,16 @@ end
 
 
 
-local function CheckCustomCollision(hit, result)
+local function CheckCustomCollision(hit, result, fallbackRay)
     if not hit or result.type ~= "areaTrigger" then return false, result end
 
     local trigger = result:getAreaTrigger()
     if not sm.exists(trigger) then return false, result end
 
     local userdata = trigger:getUserData()
-    if not userdata or not userdata.isCustomCollision then return false, result end
+    if not userdata or not userdata.isCustomCollision then
+        return fallbackRay()
+    end
 
     return true, {
         directionWorld = result.directionWorld,
@@ -157,7 +159,9 @@ function sm.physics.raycast(startPos, endPos, ignoredObject, mask)
         hit, result = oldRaycast(startPos, endPos, nil, collisionFilter)
     end
 
-    local cHit, cResult = CheckCustomCollision(hit, result)
+    local cHit, cResult = CheckCustomCollision(hit, result, function()
+        return oldRaycast(startPos, endPos, ignoredObject, mask)
+    end)
     if cHit then
         return true, cResult
     end
@@ -174,7 +178,9 @@ function sm.physics.spherecast(startPos, endPos, radius, object, mask)
         hit, result = oldSpherecast(startPos, endPos, radius, nil, collisionFilter)
     end
 
-    local cHit, cResult = CheckCustomCollision(hit, result)
+    local cHit, cResult = CheckCustomCollision(hit, result, function()
+        return oldSpherecast(startPos, endPos, radius, object, mask)
+    end)
     if cHit then
         return true, cResult
     end
